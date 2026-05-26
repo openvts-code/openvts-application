@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="web/icons/Icon-512.png" alt="Open VTS logo" width="120" />
+  <img src="assets/brand/logo.png" alt="Open VTS logo" width="120" />
 </p>
 
 # Open VTS — Mobile Application
