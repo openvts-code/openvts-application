@@ -1,135 +1,136 @@
-# Open VTS 2026
+<p align="center">
+  <img src="web/icons/Icon-512.png" alt="Open VTS logo" width="120" />
+</p>
 
-Open VTS is an open-source mobile application codebase. This repository contains the Flutter starter built for the OpenVTS mobile application.
+# Open VTS — Mobile Application
 
-- Website: https://openvts.io
+[Website](https://openvts.io) · [Repository](https://github.com/openvts-code/openvts-application) · [License: MIT](LICENSE)
 
-This boilerplate follows the agreed Phase 1 architecture:
+Open VTS is the open-source mobile application code for the Open VTS GPS tracking platform. This repository contains the Flutter-based mobile client (Android, iOS, Web) used for fleet tracking, live telemetry, geofencing, notifications and administrative workflows.
 
-```text
-UI Screen
-  -> Riverpod Controller / Provider
-    -> Role-wise Service
-      -> Central ApiClient
-        -> Dio + Backend API
-```
+This README gives a concise, enterprise-ready introduction and step-by-step initialization instructions for developers and engineering teams.
 
-## Architecture choice
+**Key capabilities**
 
-This is intentionally **not heavy Clean Architecture** and **not MVC**.
+- Live map & telemetry (vehicle position, history)
+- Multi-role UX: Superadmin / Admin / User
+- Push notifications (FCM) and local notifications
+- Geofencing, alerts, events and activity logs
+- Route optimisation and planning tools
+- Modular architecture, reusable UI components
+- Offline cache / token storage and secure API client
+- Unit & widget tests, CI-friendly layout
 
-It uses:
+## Architecture Overview
 
-- centralized API calling
-- centralized API endpoints
-- centralized token storage
-- role-wise business logic
-- role-wise screens
-- shared OpenVTS widgets
-- Riverpod for state management
-- GoRouter for route and role guards
-- OpenVTS theme tokens for consistent UI
+- Client: Flutter (single codebase for Android, iOS, Web)
+- State: Riverpod
+- Networking: Dio (central ApiClient) + interceptors (auth, refresh)
+- Routing: GoRouter with role-based shells
+- Storage: local cache / secure token storage
+- Realtime: Socket / telemetry pipeline (pluggable)
 
-## Folder philosophy
+## Quickstart — Initialize & Run (Mobile)
 
-```text
-lib/core      = app foundation: API, router, storage, theme, errors
-lib/shared    = reusable widgets, models, helpers
-lib/features  = auth + role modules: superadmin, admin, user
-```
+Prerequisites
 
+- Install Flutter (stable channel) — https://docs.flutter.dev/get-started/install
+- Android SDK (Android Studio) for Android builds
+- Xcode for iOS builds (macOS only)
+- Git (to clone the repo)
 
-## Environment setup
-
-Configuration is supplied via `--dart-define` flags at build/run time.
-No `.env` file is bundled as a Flutter asset.
-
-For local development, copy the example file as a reference:
+Clone the repository
 
 ```bash
-cp .env.example .env   # local reference only — has no effect on the build
+git clone https://github.com/openvts-code/openvts-application.git
+cd openvts-application
 ```
 
-**Default values** (used when no `--dart-define` flags are passed):
+Environment configuration
 
-| Key | Default |
-|-----|---------|
-| `API_BASE_URL` | `https://app.openvts.io/api` |
-| `USE_MOCK_DATA` | `true` |
-
-Mock mode is on by default so the app runs without a backend on first checkout.
-
-To run against the real backend:
+This project includes `.env.example` as a local reference — the `.env` file is not bundled into builds and is intended for local development only.
 
 ```bash
-flutter run \
-  --dart-define=USE_MOCK_DATA=false
+# macOS / Linux
+cp .env.example .env
+
+# Windows (PowerShell)
+Copy-Item .env.example .env
 ```
 
-To run against a local backend:
+Open `.env` and set the minimal values:
 
-```bash
-flutter run \
-  --dart-define=API_BASE_URL=http://localhost:3000/api \
-  --dart-define=USE_MOCK_DATA=false
+```env
+API_BASE_URL=https://app.openvts.io/api
+USE_MOCK_DATA=true
 ```
 
-## Run
+Notes:
+
+- `USE_MOCK_DATA=true` enables mock-mode so the app runs without a backend — useful for initial evaluation.
+- To run against a local backend from an Android emulator, set `API_BASE_URL` to `http://10.0.2.2:3000/api` (Android emulator host). For iOS Simulator use `http://localhost:3000/api`.
+
+Install dependencies and run
 
 ```bash
 flutter pub get
-flutter run -d chrome \
+
+# Run on Chrome (web)
+flutter run -d chrome --dart-define=USE_MOCK_DATA=true
+
+# Run on a connected Android device or emulator (replace <device-id> as needed)
+flutter run -d <device-id> \
   --dart-define=API_BASE_URL=http://localhost:3000/api \
-  --dart-define=USE_MOCK_DATA=true
+  --dart-define=USE_MOCK_DATA=false
 ```
 
-For real backend mode:
+Release builds
 
 ```bash
-flutter run -d chrome
+# Android (APK)
+flutter build apk --release
+
+# iOS (requires Xcode signing, macOS)
+flutter build ipa --export-options-plist=ios/ExportOptions.plist
 ```
 
-## Demo login in mock mode
+Testing & analysis
 
-Use any email/password. Role is detected from email text:
+```bash
+flutter analyze
+flutter test
+flutter format .
+```
 
-- `superadmin@openvts.com` -> superadmin
-- `admin@openvts.com` -> admin
-- anything else -> user
+## Running against production or staging
 
-## Important rules
+- Set `USE_MOCK_DATA=false` and point `API_BASE_URL` to your backend.
+- Ensure secure storage and correct OAuth/refresh-token configuration before releasing.
 
-Do not call Dio directly from screens.
-Do not store token logic inside screens.
-Do not create random button/text/card styles.
-Do not hardcode colors inside screens.
-Do not mix role logic randomly.
-Do not place all business logic in one giant file.
+## Enterprise guidance
 
-## Phase 1 includes
+- Use HTTPS/TLS for all backend endpoints and enforce certificate pinning where appropriate.
+- Integrate single sign-on (SAML / OAuth2) at the backend and mirror role claims to the mobile client.
+- Automate builds using CI (GitHub Actions recommended) with matrixed Flutter versions and emulator/device tests.
+- Partition telemetry ingestion (Socket/Streaming) from the public API for scale and resilience.
 
-- App bootstrap
-- Theme system
-- Central API client
-- Central endpoints
-- Auth interceptor
-- Token storage
-- Refresh-token interceptor placeholder
-- Role-based routing
-- Role shells
-- Auth screens
-- Superadmin dashboard/vehicles/map/settings sample
-- Admin dashboard/vehicles/map/settings sample
-- User dashboard/vehicles/map/notifications/settings sample
-- Shared UI widgets
-- Basic mock mode
+## Contributing
 
-## Next implementation steps
+- Please read [CONTRIBUTING.md](CONTRIBUTING.md) (if present) and open issues/PRs against this repository.
+- Keep PRs small and focused; include tests for any logic changes.
 
-1. Replace placeholder endpoints with exact backend endpoints.
-2. Replace mock services with live response parsing.
-3. Add real response models for each page.
-4. Add FCM registration after login.
-5. Add Socket.IO telemetry pipeline for live map.
-6. Add role permission checks if backend exposes granular permissions.
-7. Add tests for API client, auth controller, and role guards.
+## Support & links
+
+- Project website: https://openvts.io
+- Repository: https://github.com/openvts-code/openvts-application
+- License: MIT (see `LICENSE`)
+
+---
+
+If you want, I can also:
+
+- add a polished `CONTRIBUTING.md` and `CODE_OF_CONDUCT.md` template
+- add a GitHub Actions workflow for Flutter CI
+- add a higher-resolution logo or screenshots to `docs/` and embed them in this README
+
+Tell me which of the above you'd like next.
