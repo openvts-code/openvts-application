@@ -1153,11 +1153,11 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
   }
 
   Future<void> _loadCatalogs() async {
-    final service = ref.read(superadminAdministratorsServiceProvider);
+    final controller = ref.read(superadminAdministratorsControllerProvider.notifier);
     try {
       final results = await Future.wait([
-        service.getCountries(),
-        service.getMobilePrefixes(),
+        controller.getCountries(),
+        controller.getMobilePrefixes(),
       ]);
       if (!mounted) return;
       setState(() {
@@ -1184,7 +1184,7 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
     });
     try {
       final states = await ref
-          .read(superadminAdministratorsServiceProvider)
+          .read(superadminAdministratorsControllerProvider.notifier)
           .getStates(countryCode);
       if (!mounted) return;
       setState(() {
@@ -1204,7 +1204,7 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
     });
     try {
       final cities = await ref
-          .read(superadminAdministratorsServiceProvider)
+          .read(superadminAdministratorsControllerProvider.notifier)
           .getCities(countryCode, stateCode);
       if (!mounted) return;
       setState(() {

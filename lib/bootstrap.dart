@@ -6,6 +6,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'core/config/app_config.dart';
 import 'core/notifications/mobile_push_background_handler.dart';
 import 'core/notifications/mobile_push_perf.dart';
+import 'core/performance/open_vts_perf.dart';
 
 void registerBackgroundHandlers() {
   if (AppConfig.useMockData) {
@@ -24,11 +25,15 @@ void registerBackgroundHandlers() {
 Future<void> bootstrap(Future<void> Function() runApp) async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  final stopwatch = (kDebugMode || kProfileMode) ? (Stopwatch()..start()) : null;
+  final stopwatch =
+      (kDebugMode || kProfileMode) ? (Stopwatch()..start()) : null;
   mobilePushPerfLog('app_boot start');
 
   try {
-    await dotenv.load(fileName: '.env');
+    await OpenVtsPerf.traceAsync(
+      'bootstrap.dotenv',
+      () => dotenv.load(fileName: '.env'),
+    );
   } catch (e) {
     debugPrint('Failed to load .env file: $e');
     // Initialize with empty map so dotenv.env accesses don't throw NotInitializedError

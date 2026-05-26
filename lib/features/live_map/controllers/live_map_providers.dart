@@ -8,6 +8,8 @@ import '../models/live_map_state.dart';
 import '../services/live_map_events_service.dart';
 import '../services/live_map_vehicle_service.dart';
 import 'live_map_controller.dart';
+import 'live_map_socket_controller.dart';
+import 'live_map_vehicle_controller.dart';
 import 'live_map_vehicle_history_controller.dart';
 
 /// Scope-local "current role config" handle.
@@ -33,6 +35,17 @@ final liveMapVehicleServiceProvider = Provider<LiveMapVehicleService>(
     );
   },
   dependencies: <ProviderOrFamily>[currentLiveMapConfigProvider],
+);
+
+/// Role-aware vehicle drilldown controller for replay/logs/events/sensors/commands.
+final liveMapVehicleControllerProvider = Provider<LiveMapVehicleController>(
+  (ref) {
+    return LiveMapVehicleController(ref.watch(liveMapVehicleServiceProvider));
+  },
+  dependencies: <ProviderOrFamily>[
+    currentLiveMapConfigProvider,
+    liveMapVehicleServiceProvider,
+  ],
 );
 
 /// Role-aware map alert/event service for the currently scoped live map.
@@ -64,6 +77,13 @@ final liveMapControllerProvider =
     liveMapVehicleServiceProvider,
     liveMapEventsServiceProvider,
   ],
+);
+
+/// Role-map socket facade used by drawer widgets without reading core services.
+final liveMapSocketControllerProvider = Provider<LiveMapSocketController>(
+  (ref) {
+    return LiveMapSocketController(ref.watch(socketServiceProvider));
+  },
 );
 
 /// Role-aware vehicle-details lookup keyed by IMEI.

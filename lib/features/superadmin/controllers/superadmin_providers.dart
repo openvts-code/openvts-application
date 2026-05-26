@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/providers/core_providers.dart';
@@ -160,6 +162,20 @@ final superadminNotificationCenterProvider = StateNotifierProvider.autoDispose<
   return controller;
 });
 
+final superadminNotificationUnreadBadgeProvider =
+    FutureProvider.autoDispose<int>((ref) async {
+  final cacheLink = ref.keepAlive();
+  final cacheTimer = Timer(const Duration(seconds: 30), cacheLink.close);
+  ref.onDispose(cacheTimer.cancel);
+
+  try {
+    final service = ref.watch(superadminNotificationServiceProvider);
+    return await service.getUnreadBadgeCountLightweight();
+  } catch (_) {
+    return 0;
+  }
+});
+
 final superadminServerControllerProvider = StateNotifierProvider.autoDispose<
     SuperadminServerController, SuperadminServerState>((ref) {
   return SuperadminServerController(
@@ -199,10 +215,8 @@ final superadminAdminDetailsServiceProvider =
 });
 
 final superadminAdminDetailsControllerProvider =
-    StateNotifierProvider.autoDispose.family<
-        SuperadminAdminDetailsController,
-        SuperadminAdminDetailsState,
-        String>((ref, adminId) {
+    StateNotifierProvider.autoDispose.family<SuperadminAdminDetailsController,
+        SuperadminAdminDetailsState, String>((ref, adminId) {
   return SuperadminAdminDetailsController(
     adminId: adminId,
     detailsService: ref.watch(superadminAdminDetailsServiceProvider),

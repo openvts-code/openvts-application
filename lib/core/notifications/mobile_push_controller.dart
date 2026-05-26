@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../api/api_exception.dart';
 import '../config/app_config.dart';
+import '../performance/open_vts_perf.dart';
 import '../storage/local_cache.dart';
 import '../storage/storage_keys.dart';
 import '../storage/token_storage.dart';
@@ -102,8 +103,14 @@ class MobilePushController extends StateNotifier<MobilePushState> {
     }
 
     _didRunAfterAppStart = true;
-    await initializeCore();
-    await refreshPermissionStatus();
+    // Hydrate cached push state only at cold app start. Avoid network calls
+    // such as fetching mobile config here so startup/login/home rendering
+    // isn't competed with background network work. Full initialization
+    // (which may fetch `/auth/fcm-mobile-config`) runs only when a
+    // registration attempt is explicitly required.
+    await OpenVtsPerf.traceAsync('push.hydrateCachedState', () async {
+      _syncCachedState();
+    });
   }
 
   Future<void> requestPermissionAndRegisterForCurrentSession() async {
@@ -136,7 +143,14 @@ class MobilePushController extends StateNotifier<MobilePushState> {
   }
 
   Future<bool> registerTokenForCurrentSession() {
-    return _registerTokenForCurrentSession();
+    if (!shouldAttemptBackgroundRegistration) {
+      return Future<bool>.value(false);
+    }
+
+    return OpenVtsPerf.traceAsync(
+      'push.registerToken',
+      _registerTokenForCurrentSession,
+    );
   }
 
   Future<bool> deregisterCurrentToken() async {
@@ -175,7 +189,11 @@ class MobilePushController extends StateNotifier<MobilePushState> {
     await _localCache.setString(StorageKeys.mobilePushFcmToken, normalized);
     _syncCachedState(fcmToken: normalized);
 
-    if (_authAllowsRegistration) {
+    // Attempt background registration only when the full set of gating
+    // criteria are met. Otherwise, hydrate cache and defer registration
+    // until the user explicitly tests mobile push or opens Notification
+    // Settings.
+    if (_authAllowsRegistration && shouldAttemptBackgroundRegistration) {
       await _registerTokenForCurrentSession(token: normalized, force: true);
     }
   }
@@ -519,6 +537,37 @@ class MobilePushController extends StateNotifier<MobilePushState> {
   }
 
   bool get _canUsePush => state.isSupported && !AppConfig.useMockData;
+
+  /// Whether the controller is allowed to attempt a silent/background
+  /// registration without user interaction. This checks local/cached state
+  /// only and deliberately avoids any network calls; it is intended to be
+  /// evaluated at app start and right after auth/session restore to decide
+  /// whether a non-blocking registration should be attempted.
+  bool get shouldAttemptBackgroundRegistration {
+    final hasCachedConfig = _hasCachedFirebaseConfig;
+    final cooldownInactive = !_isRegistrationCooldownActive(force: false);
+    final permissionGranted = state.isPermissionGranted;
+    final notPendingRestart = !state.pendingReinitializeOnNextLaunch;
+
+    return _authAllowsRegistration &&
+        _canUsePush &&
+        permissionGranted &&
+        hasCachedConfig &&
+        notPendingRestart &&
+        cooldownInactive;
+  }
+
+  bool get _hasCachedFirebaseConfig {
+    final cachedConfigVersion = _localCache.getString(
+      StorageKeys.mobilePushFirebaseConfigVersion,
+    );
+    final cachedConfigJson = _localCache.getString(
+      StorageKeys.mobilePushFirebaseConfigJson,
+    );
+
+    return cachedConfigVersion?.trim().isNotEmpty == true &&
+        cachedConfigJson?.trim().isNotEmpty == true;
+  }
 
   void _applyPermissionSettings(NotificationSettings settings) {
     final status = settings.authorizationStatus.name;

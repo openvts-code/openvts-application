@@ -30,6 +30,7 @@ class AppConfig {
     );
   }
 
-  static const connectTimeoutSeconds = 20;
-  static const receiveTimeoutSeconds = 30;
+  // Reduced defaults to speed up UI failure feedback on mobile.
+  static const connectTimeoutSeconds = 8;
+  static const receiveTimeoutSeconds = 12;
 }

@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -6,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/notifications/mobile_push_controller.dart';
 import '../../../core/notifications/mobile_push_perf.dart';
+import '../../../core/performance/open_vts_perf.dart';
 import '../../../core/providers/core_providers.dart';
 import '../../../core/storage/token_storage.dart';
 import '../../../shared/models/user_role.dart';
@@ -44,43 +44,49 @@ class AuthController extends StateNotifier<AuthState> {
 
   CurrentUser? get currentUser => state.user;
 
-  Future<void> restoreSession() async {
-    state = const AuthState.loading();
-    final stopwatch =
-        (kDebugMode || kProfileMode) ? (Stopwatch()..start()) : null;
-    mobilePushPerfLog('auth_restore start');
-    await _setStateFromActiveSession();
-    if (stopwatch != null) {
-      mobilePushPerfLog(
-        'auth_restore end (${stopwatch.elapsedMilliseconds}ms)',
-      );
-    }
+  Future<void> restoreSession() {
+    return OpenVtsPerf.traceAsync('auth.restore', () async {
+      state = const AuthState.loading();
+      final stopwatch =
+          (kDebugMode || kProfileMode) ? (Stopwatch()..start()) : null;
+      mobilePushPerfLog('auth_restore start');
+      await _setStateFromActiveSession();
+      if (stopwatch != null) {
+        mobilePushPerfLog(
+          'auth_restore end (${stopwatch.elapsedMilliseconds}ms)',
+        );
+      }
+    });
   }
 
   Future<void> login({
     required String identifier,
     required String password,
-  }) async {
-    state = const AuthState.loading();
+  }) {
+    return OpenVtsPerf.traceAsync('auth.login', () async {
+      state = const AuthState.loading();
 
-    try {
-      final response = await _authService.login(
-        LoginRequest(identifier: identifier, password: password),
-      );
-      await setSession(response);
-    } catch (error) {
-      _setUnauthenticated(errorMessage: error.toString());
-    }
+      try {
+        final response = await _authService.login(
+          LoginRequest(identifier: identifier, password: password),
+        );
+        await setSession(response);
+      } catch (error) {
+        _setUnauthenticated(errorMessage: error.toString());
+      }
+    });
   }
 
-  Future<void> setSession(LoginResponse response) async {
-    await _tokenStorage.saveSessionForRole(
-      role: response.user.role,
-      accessToken: response.accessToken,
-      refreshToken: response.refreshToken,
-      currentUserJson: jsonEncode(response.user.toJson()),
-    );
-    await _setStateFromActiveSession();
+  Future<void> setSession(LoginResponse response) {
+    return OpenVtsPerf.traceAsync('auth.setSession', () async {
+      await _tokenStorage.saveSessionForRole(
+        role: response.user.role,
+        accessToken: response.accessToken,
+        refreshToken: response.refreshToken,
+        currentUserJson: jsonEncode(response.user.toJson()),
+      );
+      await _setStateFromActiveSession();
+    });
   }
 
   Future<void> replaceCurrentUser(CurrentUser user) async {
@@ -91,16 +97,13 @@ class AuthController extends StateNotifier<AuthState> {
     }
 
     final role = activeSession.role;
-    final previousUserId = activeSession.user.id;
     await _tokenStorage.saveSessionForRole(
       role: role,
       accessToken: activeSession.accessToken,
       refreshToken: activeSession.refreshToken,
       currentUserJson: jsonEncode(user.copyWith(role: role).toJson()),
     );
-    await _setStateFromActiveSession(
-      registerPush: previousUserId != user.id,
-    );
+    await _setStateFromActiveSession();
   }
 
   Future<UserRole?> logout() async {
@@ -137,7 +140,7 @@ class AuthController extends StateNotifier<AuthState> {
     _setUnauthenticated();
   }
 
-  Future<void> _setStateFromActiveSession({bool registerPush = true}) async {
+  Future<void> _setStateFromActiveSession() async {
     final session = await _tokenStorage.getActiveSession();
     if (session == null) {
       _setUnauthenticated();
@@ -146,27 +149,11 @@ class AuthController extends StateNotifier<AuthState> {
 
     state = AuthState.authenticated(session.user);
     _mobilePushController.updateAuthenticationState(isAuthenticated: true);
-    if (registerPush) {
-      _schedulePushRegistrationForCurrentSession();
-    }
   }
 
   void _setUnauthenticated({String? errorMessage}) {
     state = AuthState.unauthenticated(errorMessage: errorMessage);
     _mobilePushController.updateAuthenticationState(isAuthenticated: false);
-  }
-
-  void _schedulePushRegistrationForCurrentSession() {
-    // Token registration must be fire-and-forget after authentication so it
-    // can never delay the splash/login/role home flow. Permission requests
-    // are deferred to the Notification Settings / Test Mobile Push surfaces.
-    unawaited(
-      _ignorePushFailure(
-        () async {
-          await _mobilePushController.registerTokenForCurrentSession();
-        },
-      ),
-    );
   }
 
   Future<void> _deregisterPushForCurrentSession() async {
@@ -186,9 +173,7 @@ class AuthController extends StateNotifier<AuthState> {
     }
   }
 
-  Future<void> _ignorePushFailure(
-    Future<void> Function() operation,
-  ) async {
+  Future<void> _ignorePushFailure(Future<dynamic> Function() operation) async {
     try {
       await operation();
     } catch (_) {

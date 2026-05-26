@@ -28,18 +28,17 @@ class _UserSendCommandDashboardWidgetState
     extends ConsumerState<UserSendCommandDashboardWidget> {
   static const int _maxCommandLength = 500;
 
-  late Future<_SendCommandData> _future;
   final TextEditingController _commandController = TextEditingController();
   String? _selectedVehicleId;
   String? _selectedCommandId;
   bool _isSending = false;
   Object? _sendError;
   UserDashboardSendCommandResult? _result;
+  int _refreshKey = 0;
 
   @override
   void initState() {
     super.initState();
-    _future = _load();
   }
 
   @override
@@ -55,39 +54,6 @@ class _UserSendCommandDashboardWidgetState
   void dispose() {
     _commandController.dispose();
     super.dispose();
-  }
-
-  Future<_SendCommandData> _load() async {
-    final service = ref.read(userDashboardServiceProvider);
-    final results = await Future.wait<dynamic>([
-      service.getVehicles(),
-      service.getCustomCommands(),
-      service.getSystemVariables(),
-    ]);
-    final allVehicles = results[0] as List<UserDashboardVehicleOption>;
-    final operationalVehicles = allVehicles
-        .where((vehicle) => !vehicle.isLicenseBlocked)
-        .toList(growable: false);
-    final commands = (results[1] as List<UserDashboardCustomCommand>)
-        .where((command) => command.isActive)
-        .toList(growable: false);
-    final variables = (results[2] as List<UserDashboardSystemVariable>)
-        .where((variable) => variable.isActive)
-        .toList(growable: false);
-
-    if (mounted) {
-      _ensureSelection(
-        operationalVehicles: operationalVehicles,
-        commands: commands,
-      );
-    }
-
-    return _SendCommandData(
-      allVehicles: allVehicles,
-      vehicles: operationalVehicles,
-      commands: commands,
-      variables: variables,
-    );
   }
 
   void _ensureSelection({
@@ -117,12 +83,10 @@ class _UserSendCommandDashboardWidgetState
     }
   }
 
-  void _reload() {
-    setState(() {
-      _future = _load();
-      _sendError = null;
-    });
-  }
+  void _reload() => setState(() {
+        _refreshKey++;
+        _sendError = null;
+      });
 
   void _selectVehicle(String? value) {
     if (value == null || value == _selectedVehicleId) return;
@@ -133,7 +97,7 @@ class _UserSendCommandDashboardWidgetState
     });
   }
 
-  void _selectCommand(String? value, _SendCommandData data) {
+  void _selectCommand(String? value, _SendCommandDataRecord data) {
     if (value == null || value == _selectedCommandId) return;
     final selected = data.commands.where((command) => command.id == value);
     if (selected.isEmpty) return;
@@ -146,7 +110,7 @@ class _UserSendCommandDashboardWidgetState
     });
   }
 
-  Future<void> _send(_SendCommandData data) async {
+  Future<void> _send(_SendCommandDataRecord data) async {
     final vehicle = _selectedVehicle(data);
     final rawCommand = _commandController.text;
     final validationError = _validate(vehicle: vehicle, command: rawCommand);
@@ -183,7 +147,7 @@ class _UserSendCommandDashboardWidgetState
 
     try {
       final result =
-          await ref.read(userDashboardServiceProvider).sendBulkCommand(
+          await ref.read(userDashboardControllerProvider.notifier).sendBulkCommand(
                 mode: UserDashboardSendCommandMode.selected,
                 command: usesImei ? null : resolvedCommand,
                 vehicleIds: usesImei ? const <String>[] : <String>[vehicle.id],
@@ -228,7 +192,7 @@ class _UserSendCommandDashboardWidgetState
     return null;
   }
 
-  UserDashboardVehicleOption? _selectedVehicle(_SendCommandData data) {
+  UserDashboardVehicleOption? _selectedVehicle(_SendCommandDataRecord data) {
     if (data.vehicles.isEmpty) return null;
     final selectedId = _selectedVehicleId;
     if (selectedId != null) {
@@ -239,7 +203,7 @@ class _UserSendCommandDashboardWidgetState
     return data.vehicles.first;
   }
 
-  UserDashboardCustomCommand? _selectedCommand(_SendCommandData data) {
+  UserDashboardCustomCommand? _selectedCommand(_SendCommandDataRecord data) {
     final selectedId = _selectedCommandId;
     if (selectedId != null) {
       for (final command in data.commands) {
@@ -251,30 +215,48 @@ class _UserSendCommandDashboardWidgetState
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<_SendCommandData>(
-      future: _future,
-      builder: (context, snapshot) {
-        final isLoading = snapshot.connectionState != ConnectionState.done;
-        return UserDashboardWidgetCard(
-          title: widget.config.title,
-          icon: Icons.terminal_rounded,
-          isLoading: isLoading || _isSending,
-          onRefresh: _reload,
-          child: _buildBody(snapshot),
-        );
-      },
+    final state = ref.watch(
+      userDashboardSendCommandProvider(
+        UserDashboardRefreshArgs(
+          widgetId: widget.config.id,
+          refreshKey: _refreshKey,
+        ),
+      ),
+    );
+    final data = state.valueOrNull;
+    if (data != null) {
+      _ensureSelection(
+        operationalVehicles: data.vehicles,
+        commands: data.commands,
+      );
+    }
+    return UserDashboardWidgetCard(
+      title: widget.config.title,
+      icon: Icons.terminal_rounded,
+      isLoading: state.isLoading || _isSending,
+      onRefresh: _reload,
+      child: _buildBody(state),
     );
   }
 
-  Widget _buildBody(AsyncSnapshot<_SendCommandData> snapshot) {
-    if (snapshot.hasError) {
+  Widget _buildBody(
+    AsyncValue<
+            ({
+              List<UserDashboardVehicleOption> allVehicles,
+              List<UserDashboardVehicleOption> vehicles,
+              List<UserDashboardCustomCommand> commands,
+              List<UserDashboardSystemVariable> variables,
+            })>
+        state,
+  ) {
+    if (state.hasError) {
       return UserDashboardWidgetError(
-        message: userDashboardErrorText(snapshot.error!),
+        message: userDashboardErrorText(state.error!),
         onRetry: _reload,
       );
     }
 
-    final data = snapshot.data;
+    final data = state.valueOrNull;
     if (data == null) {
       return const _SendCommandSkeleton();
     }
@@ -777,19 +759,12 @@ class _SendCommandSkeleton extends StatelessWidget {
   }
 }
 
-class _SendCommandData {
-  const _SendCommandData({
-    required this.allVehicles,
-    required this.vehicles,
-    required this.commands,
-    required this.variables,
-  });
-
-  final List<UserDashboardVehicleOption> allVehicles;
-  final List<UserDashboardVehicleOption> vehicles;
-  final List<UserDashboardCustomCommand> commands;
-  final List<UserDashboardSystemVariable> variables;
-}
+typedef _SendCommandDataRecord = ({
+  List<UserDashboardVehicleOption> allVehicles,
+  List<UserDashboardVehicleOption> vehicles,
+  List<UserDashboardCustomCommand> commands,
+  List<UserDashboardSystemVariable> variables,
+});
 
 String _vehicleLabel(UserDashboardVehicleOption vehicle) {
   final plate = vehicle.plateNumber?.trim();

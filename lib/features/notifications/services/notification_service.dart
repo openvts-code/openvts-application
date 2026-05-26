@@ -1,6 +1,9 @@
+import 'package:dio/dio.dart';
+
 import '../../../core/api/api_client.dart';
 import '../../../core/config/app_config.dart';
 import '../../../core/config/app_constants.dart';
+import '../../../core/performance/open_vts_perf.dart';
 import '../models/app_notification.dart';
 import '../models/notification_page.dart';
 
@@ -48,37 +51,89 @@ abstract class NotificationService {
     return response.data;
   }
 
-  Future<int> getUnreadCount() async {
-    if (AppConfig.useMockData) {
-      return _buildMockNotifications().where((item) => !item.isRead).length;
-    }
+  Future<int> getUnreadCount() {
+    return OpenVtsPerf.traceAsync('notifications.getUnreadCount', () async {
+      if (AppConfig.useMockData) {
+        return _buildMockNotifications().where((item) => !item.isRead).length;
+      }
 
-    const batchLimit = 100;
-    final firstPage = await getNotifications(
-      limit: batchLimit,
-      unreadOnly: true,
-    );
-
-    if (firstPage.unreadCount != null) {
-      return firstPage.unreadCount!;
-    }
-
-    var total = firstPage.items.length;
-    var hasMore = firstPage.hasMore;
-    var nextBeforeId = firstPage.nextBeforeId;
-
-    while (hasMore && nextBeforeId != null) {
-      final page = await getNotifications(
+      const batchLimit = 100;
+      final firstPage = await getNotifications(
         limit: batchLimit,
-        beforeId: nextBeforeId,
         unreadOnly: true,
       );
-      total += page.items.length;
-      hasMore = page.hasMore;
-      nextBeforeId = page.nextBeforeId;
-    }
 
-    return total;
+      if (firstPage.unreadCount != null) {
+        return firstPage.unreadCount!;
+      }
+
+      var total = firstPage.items.length;
+      var hasMore = firstPage.hasMore;
+      var nextBeforeId = firstPage.nextBeforeId;
+
+      while (hasMore && nextBeforeId != null) {
+        final page = await getNotifications(
+          limit: batchLimit,
+          beforeId: nextBeforeId,
+          unreadOnly: true,
+        );
+        total += page.items.length;
+        hasMore = page.hasMore;
+        nextBeforeId = page.nextBeforeId;
+      }
+
+      return total;
+    });
+  }
+
+  /// Lightweight unread badge count fetch.
+  ///
+  /// Rules:
+  /// - Single API request only.
+  /// - No pagination loop.
+  /// - Prefer backend-provided `unreadCount` if present.
+  /// - Fallback: request 1 unread item and return 0/1 accordingly.
+  /// - Use short request timeouts to avoid blocking UI.
+  Future<int> getUnreadBadgeCountLightweight() {
+    return OpenVtsPerf.traceAsync(
+      'notifications.getUnreadBadgeCountLightweight',
+      () async {
+        if (AppConfig.useMockData) {
+          return _buildMockNotifications().where((item) => !item.isRead).length;
+        }
+
+        try {
+          const badgeLimit = 1;
+          final options = Options(
+            sendTimeout: const Duration(seconds: 3),
+            receiveTimeout: const Duration(seconds: 3),
+          );
+
+          final response = await _apiClient.get<NotificationPage>(
+            listEndpoint,
+            queryParameters: <String, dynamic>{
+              'limit': badgeLimit.toString(),
+              'unreadOnly': 'true',
+            },
+            options: options,
+            parser: (json) => NotificationPage.fromDynamic(
+              json,
+              requestedLimit: badgeLimit,
+            ),
+          );
+
+          final page = response.data;
+          if (page.unreadCount != null) {
+            return page.unreadCount!;
+          }
+
+          return page.items.isEmpty ? 0 : 1;
+        } catch (_) {
+          // Network, parse or timeout failures should not throw to UI.
+          return 0;
+        }
+      },
+    );
   }
 
   Future<void> markAsRead(int id) async {
@@ -131,9 +186,8 @@ abstract class NotificationService {
     }
 
     if (unreadOnly) {
-      notifications = notifications
-          .where((item) => !item.isRead)
-          .toList(growable: false);
+      notifications =
+          notifications.where((item) => !item.isRead).toList(growable: false);
     }
 
     if (beforeId != null) {
@@ -142,7 +196,8 @@ abstract class NotificationService {
           .toList(growable: false);
     }
 
-    final unreadCount = _buildMockNotifications().where((item) => !item.isRead).length;
+    final unreadCount =
+        _buildMockNotifications().where((item) => !item.isRead).length;
     final hasMore = notifications.length > limit;
     final pageItems = notifications.take(limit).toList(growable: false);
 
@@ -191,7 +246,8 @@ abstract class NotificationService {
       AppNotification(
         id: 617,
         title: 'Live telemetry restored',
-        message: 'Tracker 359881234567890 is reporting again after a brief outage.',
+        message:
+            'Tracker 359881234567890 is reporting again after a brief outage.',
         isRead: false,
         category: 'Connectivity',
         contextLabel: '359881234567890',
@@ -221,18 +277,16 @@ abstract class NotificationService {
       ),
     ];
 
-    return notifications
-        .map((item) {
-          if (!_mockReadIds.contains(item.id)) {
-            return item;
-          }
+    return notifications.map((item) {
+      if (!_mockReadIds.contains(item.id)) {
+        return item;
+      }
 
-          return item.copyWith(
-            isRead: true,
-            readAt: item.readAt ?? now,
-          );
-        })
-        .toList(growable: false)
+      return item.copyWith(
+        isRead: true,
+        readAt: item.readAt ?? now,
+      );
+    }).toList(growable: false)
       ..sort((left, right) => right.id.compareTo(left.id));
   }
 

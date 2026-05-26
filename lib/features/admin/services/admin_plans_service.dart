@@ -1,7 +1,6 @@
-import 'package:dio/dio.dart';
-
 import '../../../core/api/api_client.dart';
 import '../../../core/api/api_endpoints.dart';
+import '../../../core/api/api_options.dart';
 import '../models/admin_plans_model.dart';
 
 class AdminPlansService {
@@ -9,14 +8,9 @@ class AdminPlansService {
 
   final ApiClient _apiClient;
 
-  static final _readOptions = Options(
-    receiveTimeout: const Duration(seconds: 60),
-  );
+  static final _readOptions = normalReadOptions();
 
-  static final _mutationOptions = Options(
-    sendTimeout: const Duration(seconds: 60),
-    receiveTimeout: const Duration(seconds: 60),
-  );
+  static final _mutationOptions = normalWriteOptions();
 
   Future<List<AdminPlan>> getPlans({String? refreshKey}) async {
     final response = await _apiClient.get<dynamic>(

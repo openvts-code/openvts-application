@@ -27,13 +27,7 @@ class UserFleetStatusWidget extends ConsumerStatefulWidget {
 }
 
 class _UserFleetStatusWidgetState extends ConsumerState<UserFleetStatusWidget> {
-  late Future<UserDashboardFleetStatus> _future;
-
-  @override
-  void initState() {
-    super.initState();
-    _future = _load();
-  }
+  int _refreshKey = 0;
 
   @override
   void didUpdateWidget(covariant UserFleetStatusWidget oldWidget) {
@@ -44,42 +38,36 @@ class _UserFleetStatusWidgetState extends ConsumerState<UserFleetStatusWidget> {
     }
   }
 
-  Future<UserDashboardFleetStatus> _load() {
-    return ref.read(userDashboardServiceProvider).getFleetStatus();
-  }
-
-  void _reload() {
-    setState(() {
-      _future = _load();
-    });
-  }
+  void _reload() => setState(() => _refreshKey++);
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<UserDashboardFleetStatus>(
-      future: _future,
-      builder: (context, snapshot) {
-        final isLoading = snapshot.connectionState != ConnectionState.done;
-        return UserDashboardWidgetCard(
-          title: widget.config.title,
-          icon: Icons.directions_car_filled_outlined,
-          isLoading: isLoading,
-          onRefresh: _reload,
-          child: _buildBody(snapshot),
-        );
-      },
+    final state = ref.watch(
+      userDashboardFleetStatusProvider(
+        UserDashboardRefreshArgs(
+          widgetId: widget.config.id,
+          refreshKey: _refreshKey,
+        ),
+      ),
+    );
+    return UserDashboardWidgetCard(
+      title: widget.config.title,
+      icon: Icons.directions_car_filled_outlined,
+      isLoading: state.isLoading,
+      onRefresh: _reload,
+      child: _buildBody(state),
     );
   }
 
-  Widget _buildBody(AsyncSnapshot<UserDashboardFleetStatus> snapshot) {
-    if (snapshot.hasError) {
+  Widget _buildBody(AsyncValue<UserDashboardFleetStatus> state) {
+    if (state.hasError) {
       return UserDashboardWidgetError(
-        message: snapshot.error.toString(),
+        message: state.error.toString(),
         onRetry: _reload,
       );
     }
 
-    final data = snapshot.data;
+    final data = state.valueOrNull;
     if (data == null) {
       return const _FleetStatusSkeleton();
     }

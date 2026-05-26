@@ -7,7 +7,19 @@ import '../models/user_dashboard_model.dart';
 class UserDashboardService {
   UserDashboardService(this._apiClient);
 
+  static const Duration _overviewCacheTtl = Duration(seconds: 30);
+  static const Duration _recentAlertsCacheTtl = Duration(seconds: 20);
+
   final ApiClient _apiClient;
+  final Map<String, _DashboardCacheEntry<dynamic>> _cacheByKey =
+      <String, _DashboardCacheEntry<dynamic>>{};
+  final Map<String, Future<dynamic>> _inFlightByKey =
+      <String, Future<dynamic>>{};
+
+  void invalidateDashboardOverviewCache() {
+    _removeCacheWherePrefix(_overviewCachePrefix);
+    _removeCacheWherePrefix(_recentAlertsCachePrefix);
+  }
 
   Future<List<UserDashboardListItem>> getDashboards() async {
     if (AppConfig.useMockData) {
@@ -33,46 +45,81 @@ class UserDashboardService {
     return response.data;
   }
 
-  Future<UserDashboardFleetStatus> getFleetStatus() async {
+  Future<UserDashboardFleetStatus> getFleetStatus({
+    bool forceRefresh = false,
+  }) async {
     if (AppConfig.useMockData) {
       return _mockFleetStatus();
     }
 
-    final response = await _apiClient.get<UserDashboardFleetStatus>(
-      ApiEndpoints.user.dashboardFleetStatus,
-      parser: UserDashboardFleetStatus.fromJson,
+    return _getWithCacheAndDedup<UserDashboardFleetStatus>(
+      cacheKey: _cacheKey(_overviewCachePrefix, const <String, dynamic>{
+        'resource': 'fleet_status',
+      }),
+      ttl: _overviewCacheTtl,
+      forceRefresh: forceRefresh,
+      request: () async {
+        final response = await _apiClient.get<UserDashboardFleetStatus>(
+          ApiEndpoints.user.dashboardFleetStatus,
+          parser: UserDashboardFleetStatus.fromJson,
+        );
+        return response.data;
+      },
     );
-    return response.data;
   }
 
   Future<UserDashboardUsageLast7Days> getUsageLast7Days({
     String? vehicleId,
+    bool forceRefresh = false,
   }) async {
     if (AppConfig.useMockData) {
       return _mockUsageLast7Days(vehicleId: vehicleId);
     }
 
-    final response = await _apiClient.get<UserDashboardUsageLast7Days>(
-      ApiEndpoints.user.dashboardUsageLast7Days,
-      queryParameters: _query({'vehicleId': vehicleId}),
-      parser: UserDashboardUsageLast7Days.fromJson,
+    final normalizedVehicleId = _normalizeOptional(vehicleId);
+    return _getWithCacheAndDedup<UserDashboardUsageLast7Days>(
+      cacheKey: _cacheKey(_overviewCachePrefix, <String, dynamic>{
+        'resource': 'usage_last_7_days',
+        'vehicleId': normalizedVehicleId ?? 'all',
+      }),
+      ttl: _overviewCacheTtl,
+      forceRefresh: forceRefresh,
+      request: () async {
+        final response = await _apiClient.get<UserDashboardUsageLast7Days>(
+          ApiEndpoints.user.dashboardUsageLast7Days,
+          queryParameters: _query({'vehicleId': normalizedVehicleId}),
+          parser: UserDashboardUsageLast7Days.fromJson,
+        );
+        return response.data;
+      },
     );
-    return response.data;
   }
 
   Future<UserDashboardWeeklyComparison> getWeeklyComparison({
     String? vehicleId,
+    bool forceRefresh = false,
   }) async {
     if (AppConfig.useMockData) {
       return _mockWeeklyComparison(vehicleId: vehicleId);
     }
 
-    final response = await _apiClient.get<UserDashboardWeeklyComparison>(
-      ApiEndpoints.user.dashboardWeeklyComparison,
-      queryParameters: _query({'vehicleId': vehicleId}),
-      parser: UserDashboardWeeklyComparison.fromJson,
+    final normalizedVehicleId = _normalizeOptional(vehicleId);
+    return _getWithCacheAndDedup<UserDashboardWeeklyComparison>(
+      cacheKey: _cacheKey(_overviewCachePrefix, <String, dynamic>{
+        'resource': 'weekly_comparison',
+        'vehicleId': normalizedVehicleId ?? 'all',
+      }),
+      ttl: _overviewCacheTtl,
+      forceRefresh: forceRefresh,
+      request: () async {
+        final response = await _apiClient.get<UserDashboardWeeklyComparison>(
+          ApiEndpoints.user.dashboardWeeklyComparison,
+          queryParameters: _query({'vehicleId': normalizedVehicleId}),
+          parser: UserDashboardWeeklyComparison.fromJson,
+        );
+        return response.data;
+      },
     );
-    return response.data;
   }
 
   Future<UserDashboardRecentAlertsPage> getRecentAlerts({
@@ -81,23 +128,39 @@ class UserDashboardService {
     int? beforeId,
     String? from,
     String? refreshKey,
+    bool forceRefresh = false,
   }) async {
     if (AppConfig.useMockData) {
       return _mockRecentAlerts(limit: limit, vehicleId: vehicleId);
     }
 
-    final response = await _apiClient.get<UserDashboardRecentAlertsPage>(
-      ApiEndpoints.user.dashboardRecentAlerts,
-      queryParameters: _query({
-        'vehicleId': vehicleId,
+    final normalizedVehicleId = _normalizeOptional(vehicleId);
+    final normalizedFrom = _normalizeOptional(from);
+    final normalizedRefreshKey = _normalizeOptional(refreshKey);
+    return _getWithCacheAndDedup<UserDashboardRecentAlertsPage>(
+      cacheKey: _cacheKey(_recentAlertsCachePrefix, <String, dynamic>{
+        'vehicleId': normalizedVehicleId ?? 'all',
         'limit': limit,
         'beforeId': beforeId,
-        'from': from,
-        'rk': refreshKey,
+        'from': normalizedFrom,
       }),
-      parser: UserDashboardRecentAlertsPage.fromJson,
+      ttl: _recentAlertsCacheTtl,
+      forceRefresh: forceRefresh,
+      request: () async {
+        final response = await _apiClient.get<UserDashboardRecentAlertsPage>(
+          ApiEndpoints.user.dashboardRecentAlerts,
+          queryParameters: _query({
+            'vehicleId': normalizedVehicleId,
+            'limit': limit,
+            'beforeId': beforeId,
+            'from': normalizedFrom,
+            'rk': normalizedRefreshKey,
+          }),
+          parser: UserDashboardRecentAlertsPage.fromJson,
+        );
+        return response.data;
+      },
     );
-    return response.data;
   }
 
   Future<UserDashboardAlertDetail> getRecentAlertDetail(String id) async {
@@ -122,27 +185,43 @@ class UserDashboardService {
       data: const <String, dynamic>{},
       parser: (_) {},
     );
+    _removeCacheWherePrefix(_recentAlertsCachePrefix);
   }
 
   Future<UserDashboardTopAssets> getTopPerformingAssets({
     required DateTime from,
     required DateTime to,
     int limit = 10,
+    bool forceRefresh = false,
   }) async {
     if (AppConfig.useMockData) {
       return _mockTopPerformingAssets(from: from, to: to, limit: limit);
     }
 
-    final response = await _apiClient.get<UserDashboardTopAssets>(
-      ApiEndpoints.user.dashboardTopPerformingAssets,
-      queryParameters: _query({
-        'from': from.toIso8601String(),
-        'to': to.toIso8601String(),
+    final normalizedFrom = from.toIso8601String();
+    final normalizedTo = to.toIso8601String();
+    return _getWithCacheAndDedup<UserDashboardTopAssets>(
+      cacheKey: _cacheKey(_overviewCachePrefix, <String, dynamic>{
+        'resource': 'top_assets',
+        'fromBucket': _cacheBucketForDateTime(from, _overviewCacheTtl),
+        'toBucket': _cacheBucketForDateTime(to, _overviewCacheTtl),
         'limit': limit,
       }),
-      parser: UserDashboardTopAssets.fromJson,
+      ttl: _overviewCacheTtl,
+      forceRefresh: forceRefresh,
+      request: () async {
+        final response = await _apiClient.get<UserDashboardTopAssets>(
+          ApiEndpoints.user.dashboardTopPerformingAssets,
+          queryParameters: _query({
+            'from': normalizedFrom,
+            'to': normalizedTo,
+            'limit': limit,
+          }),
+          parser: UserDashboardTopAssets.fromJson,
+        );
+        return response.data;
+      },
     );
-    return response.data;
   }
 
   Future<UserDashboardDayNightComparison> getDayNightComparison({
@@ -170,16 +249,27 @@ class UserDashboardService {
     return response.data;
   }
 
-  Future<List<UserDashboardVehicleOption>> getVehicles() async {
+  Future<List<UserDashboardVehicleOption>> getVehicles({
+    bool forceRefresh = false,
+  }) async {
     if (AppConfig.useMockData) {
       return _mockVehicles();
     }
 
-    final response = await _apiClient.get<List<UserDashboardVehicleOption>>(
-      ApiEndpoints.user.vehicles,
-      parser: UserDashboardVehicleOption.listFromResponse,
+    return _getWithCacheAndDedup<List<UserDashboardVehicleOption>>(
+      cacheKey: _cacheKey(_overviewCachePrefix, const <String, dynamic>{
+        'resource': 'vehicle_options',
+      }),
+      ttl: _overviewCacheTtl,
+      forceRefresh: forceRefresh,
+      request: () async {
+        final response = await _apiClient.get<List<UserDashboardVehicleOption>>(
+          ApiEndpoints.user.vehicles,
+          parser: UserDashboardVehicleOption.listFromResponse,
+        );
+        return response.data;
+      },
     );
-    return response.data;
   }
 
   Future<List<UserDashboardSensorOption>> getVehicleSensors(
@@ -289,6 +379,84 @@ class UserDashboardService {
           entry.key: entry.value,
     };
   }
+
+  Future<T> _getWithCacheAndDedup<T>({
+    required String cacheKey,
+    required Duration ttl,
+    required Future<T> Function() request,
+    required bool forceRefresh,
+  }) {
+    final now = DateTime.now();
+    if (!forceRefresh) {
+      final cached = _cacheByKey[cacheKey];
+      if (cached != null && cached.expiresAt.isAfter(now)) {
+        return Future<T>.value(cached.value as T);
+      }
+    }
+
+    final existingInFlight = _inFlightByKey[cacheKey];
+    if (existingInFlight != null) {
+      return existingInFlight.then((value) => value as T);
+    }
+
+    final created = request().then<dynamic>((value) {
+      _cacheByKey[cacheKey] = _DashboardCacheEntry<dynamic>(
+        value: value,
+        expiresAt: DateTime.now().add(ttl),
+      );
+      return value;
+    });
+
+    _inFlightByKey[cacheKey] = created;
+    return created.then((value) => value as T).whenComplete(() {
+      if (identical(_inFlightByKey[cacheKey], created)) {
+        _inFlightByKey.remove(cacheKey);
+      }
+    });
+  }
+
+  void _removeCacheWherePrefix(String prefix) {
+    _cacheByKey.removeWhere((key, _) => key.startsWith(prefix));
+  }
+
+  String _cacheKey(String prefix, Map<String, dynamic> parts) {
+    final orderedEntries = parts.entries.toList(growable: false)
+      ..sort((left, right) => left.key.compareTo(right.key));
+    final suffix = orderedEntries
+        .map((entry) => '${entry.key}=${entry.value ?? ''}')
+        .join('&');
+    return '$prefix:$suffix';
+  }
+
+  String? _normalizeOptional(String? value) {
+    final normalized = value?.trim();
+    if (normalized == null || normalized.isEmpty) {
+      return null;
+    }
+    return normalized;
+  }
+
+  int _cacheBucketForDateTime(DateTime value, Duration ttl) {
+    final millis = value.toUtc().millisecondsSinceEpoch;
+    final bucketSize = ttl.inMilliseconds;
+    if (bucketSize <= 0) {
+      return millis;
+    }
+    return millis ~/ bucketSize;
+  }
+}
+
+const String _overviewCachePrefix = 'overview';
+const String _recentAlertsCachePrefix = 'recent_alerts';
+
+class _DashboardCacheEntry<T> {
+  const _DashboardCacheEntry({
+    required this.value,
+    required this.expiresAt,
+  });
+
+  final T value;
+  final DateTime expiresAt;
 }
 
 dynamic _jsonId(String id) => int.tryParse(id.trim()) ?? id.trim();

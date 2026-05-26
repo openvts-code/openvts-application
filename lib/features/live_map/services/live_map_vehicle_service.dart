@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 
 import '../../../core/api/api_client.dart';
 import '../../../core/config/app_config.dart';
+import '../../../core/api/api_options.dart';
 import '../../../shared/models/vehicle_summary.dart';
 import '../../notifications/models/app_notification.dart';
 import '../../superadmin/models/superadmin_map_overlay_model.dart';
@@ -60,9 +61,7 @@ class LiveMapVehicleService {
   LiveMapRoleConfig get config => _config;
   LiveMapRole get role => _config.role;
 
-  static final Options _readOptions = Options(
-    receiveTimeout: const Duration(seconds: 60),
-  );
+  static final Options _readOptions = normalReadOptions();
 
   // -------------------------------------------------------------------------
   // Parser passthroughs (used by LiveMapController for socket payload merge).
@@ -310,7 +309,7 @@ class LiveMapVehicleService {
         'maxPoints': normalizedMaxPoints.toString(),
         if (overspeedKph != null) 'overspeedKph': overspeedKph.toString(),
       },
-      options: _readOptions,
+      options: heavyReadOptions(),
       parser: (json) => _parsers.parseVehicleHistoryPayload(json, request),
     );
     return response.data;
@@ -343,7 +342,7 @@ class LiveMapVehicleService {
         'to': to.toUtc().toIso8601String(),
         'maxPoints': maxPoints,
       },
-      options: _readOptions,
+      options: heavyReadOptions(),
       parser: _parsers.parseVehicleReplayPayload,
     );
     return response.data;

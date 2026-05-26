@@ -73,23 +73,19 @@ class _AdminCreateVehicleScreenState
     });
 
     try {
-      final service = ref.read(adminVehicleServiceProvider);
-      final results = await Future.wait<dynamic>([
-        service.getUsers(),
-        service.getQuickDevices(),
-        service.getVehicleTypes(),
-        service.getPricingPlans(),
-      ]);
+      final catalog = await ref
+          .read(adminVehiclesControllerProvider.notifier)
+          .getCreateVehicleCatalog();
 
       if (!mounted) {
         return;
       }
 
       setState(() {
-        _users = results[0] as List<AdminVehicleUserMini>;
-        _devices = results[1] as List<AdminQuickDeviceOption>;
-        _vehicleTypes = results[2] as List<AdminVehicleTypeOption>;
-        _plans = results[3] as List<AdminPricingPlanOption>;
+        _users = catalog.users;
+        _devices = catalog.devices;
+        _vehicleTypes = catalog.vehicleTypes;
+        _plans = catalog.plans;
         _isCatalogLoading = false;
       });
     } catch (error) {

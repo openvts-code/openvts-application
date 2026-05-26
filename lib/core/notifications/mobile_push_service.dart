@@ -388,25 +388,76 @@ class MobilePushService {
 
       final previousConfigVersion = _initializedConfigVersion ??
           _localCache.getString(StorageKeys.mobilePushFirebaseConfigVersion);
-      final config = await fetchMobileConfig(platform: platform);
-      await _cacheConfig(config);
 
-      if (Firebase.apps.isEmpty) {
-        await Firebase.initializeApp(
-          options: config.firebaseOptions.toFirebaseOptions(),
-        );
-        _initializedConfigVersion = config.configVersion;
-      } else if (_isSameRuntimeConfig(previousConfigVersion, config)) {
-        _initializedConfigVersion = config.configVersion;
+      // Prefer using cached Firebase config at startup to avoid a network
+      // request to /auth/fcm-mobile-config during hot app start. Remote
+      // fetches are performed only when no cached config is present.
+      final cachedJson = _localCache.getString(
+        StorageKeys.mobilePushFirebaseConfigJson,
+      );
+
+      if (cachedJson != null && cachedJson.trim().isNotEmpty) {
+        try {
+          final cached = MobileFcmConfigResponse.fromDynamic(
+            jsonDecode(cachedJson),
+          );
+
+          final config = cached;
+          if (Firebase.apps.isEmpty) {
+            await Firebase.initializeApp(
+              options: config.firebaseOptions.toFirebaseOptions(),
+            );
+            _initializedConfigVersion = config.configVersion;
+          } else {
+            // Runtime already has a Firebase app; accept cached config as the
+            // authoritative local config for background registration purposes.
+            _initializedConfigVersion = config.configVersion;
+          }
+        } catch (_) {
+          // Corrupt cache -> fall back to fetching remote config.
+          final config = await fetchMobileConfig(platform: platform);
+          await _cacheConfig(config);
+
+          if (Firebase.apps.isEmpty) {
+            await Firebase.initializeApp(
+              options: config.firebaseOptions.toFirebaseOptions(),
+            );
+            _initializedConfigVersion = config.configVersion;
+          } else if (_isSameRuntimeConfig(previousConfigVersion, config)) {
+            _initializedConfigVersion = config.configVersion;
+          } else {
+            const message =
+                'Firebase mobile config changed and will apply on next cold start.';
+            await _rememberLastInitError(message);
+            return MobilePushInitResult.pendingRestart(
+              platform: platform,
+              configVersion: config.configVersion,
+              message: message,
+            );
+          }
+        }
       } else {
-        const message =
-            'Firebase mobile config changed and will apply on next cold start.';
-        await _rememberLastInitError(message);
-        return MobilePushInitResult.pendingRestart(
-          platform: platform,
-          configVersion: config.configVersion,
-          message: message,
-        );
+        // No cached config available — fetch remote config as before.
+        final config = await fetchMobileConfig(platform: platform);
+        await _cacheConfig(config);
+
+        if (Firebase.apps.isEmpty) {
+          await Firebase.initializeApp(
+            options: config.firebaseOptions.toFirebaseOptions(),
+          );
+          _initializedConfigVersion = config.configVersion;
+        } else if (_isSameRuntimeConfig(previousConfigVersion, config)) {
+          _initializedConfigVersion = config.configVersion;
+        } else {
+          const message =
+              'Firebase mobile config changed and will apply on next cold start.';
+          await _rememberLastInitError(message);
+          return MobilePushInitResult.pendingRestart(
+            platform: platform,
+            configVersion: config.configVersion,
+            message: message,
+          );
+        }
       }
 
       await _clearLastInitError();
@@ -428,7 +479,8 @@ class MobilePushService {
 
       return MobilePushInitResult.initialized(
         platform: platform,
-        configVersion: config.configVersion,
+        configVersion: _initializedConfigVersion ??
+            _localCache.getString(StorageKeys.mobilePushFirebaseConfigVersion),
       );
     } catch (error) {
       final message = _safeError(error);

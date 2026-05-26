@@ -65,10 +65,13 @@ class MobilePushNavigation {
     switch (activeRole) {
       case UserRole.superadmin:
         _ref.invalidate(superadminNotificationCenterProvider);
+        _ref.invalidate(superadminNotificationUnreadBadgeProvider);
       case UserRole.admin:
         _ref.invalidate(adminNotificationCenterProvider);
+        _ref.invalidate(adminNotificationUnreadBadgeProvider);
       case UserRole.user:
         _ref.invalidate(userNotificationCenterProvider);
+        _ref.invalidate(userNotificationUnreadBadgeProvider);
       case null:
         return;
     }

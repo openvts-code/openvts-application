@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import '../../../../core/api/api_options.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/api/api_client.dart';
 import '../../../../core/api/api_endpoints.dart';
@@ -6,14 +7,13 @@ import '../../../../core/providers/core_providers.dart';
 import '../../../../shared/models/api_result.dart';
 import '../models/superadmin_calendar_model.dart';
 
-final superadminCalendarServiceProvider = Provider<SuperadminCalendarService>((ref) {
+final superadminCalendarServiceProvider =
+    Provider<SuperadminCalendarService>((ref) {
   return SuperadminCalendarService(ref.read(apiClientProvider));
 });
 
 class SuperadminCalendarService {
-  static final Options _readOptions = Options(
-    receiveTimeout: const Duration(seconds: 60),
-  );
+  static final Options _readOptions = normalReadOptions();
 
   static const Map<String, String> _apiTypesByCalendarFilter = {
     'users': 'USER_CREATED',
@@ -91,7 +91,8 @@ class SuperadminCalendarService {
     }
   }
 
-  Future<ApiResult<CalendarLinkedDetail>> getVehicleDetails(String vehicleId) async {
+  Future<ApiResult<CalendarLinkedDetail>> getVehicleDetails(
+      String vehicleId) async {
     try {
       final response = await _apiClient.get<CalendarLinkedDetail>(
         ApiEndpoints.superadmin.vehicleDetail(vehicleId),

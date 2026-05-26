@@ -20,20 +20,21 @@ class OnboardingController extends StateNotifier<int> {
   final List<OnboardingModel> pages = [
     OnboardingModel(
       image: 'assets/images/onboarding_1.png',
-      title: 'IMAGINATION',
-      subtitle: 'Here you will get unlimited imagination and play your talents',
+      title: 'Command Every Vehicle',
+      subtitle:
+          'See live location, routes, drivers, and activity from one secure control center built for serious fleet operations.',
     ),
     OnboardingModel(
       image: 'assets/images/onboarding_2.png',
-      title: 'CREATION',
+      title: 'Your Data Stays Yours',
       subtitle:
-          'Music is one of the ways to inspire, it can make you become infinite',
+          'OpenVTS keeps fleet data inside your own infrastructure, giving your business stronger security and privacy.',
     ),
     OnboardingModel(
       image: 'assets/images/onboarding_3.png',
-      title: 'CREATION',
+      title: 'Own The Platform',
       subtitle:
-          'Music is one of the ways to inspire, it can make you become infinite',
+          'No SaaS lock-in. No outside dependency. Run self-hosted GPS software with full control, access, and ownership.',
     ),
   ];
 

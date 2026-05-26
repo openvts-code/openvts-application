@@ -6,6 +6,7 @@ import 'package:http_parser/http_parser.dart';
 
 import '../../../core/api/api_client.dart';
 import '../../../core/api/api_endpoints.dart';
+import '../../../core/api/api_options.dart';
 import '../models/superadmin_admin_details_model.dart';
 
 class SuperadminAdminDetailsService {
@@ -13,18 +14,11 @@ class SuperadminAdminDetailsService {
 
   final ApiClient _apiClient;
 
-  static final Options _readOptions = Options(
-    receiveTimeout: const Duration(seconds: 45),
-  );
+  static final Options _readOptions = normalReadOptions();
 
-  static final Options _mutationOptions = Options(
-    sendTimeout: const Duration(seconds: 60),
-    receiveTimeout: const Duration(seconds: 60),
-  );
+  static final Options _mutationOptions = normalWriteOptions();
 
-  static final Options _uploadOptions = Options(
-    sendTimeout: const Duration(minutes: 5),
-    receiveTimeout: const Duration(minutes: 5),
+  static final Options _uploadOptions = uploadOptions().copyWith(
     contentType: Headers.multipartFormDataContentType,
   );
 

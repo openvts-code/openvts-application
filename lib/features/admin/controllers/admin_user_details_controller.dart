@@ -217,6 +217,15 @@ class AdminUserDetailsController extends StateNotifier<AdminUserDetailsState> {
     }
   }
 
+  Future<AdminUserCompany?> getCompanyDetails() async {
+    try {
+      return await _service.getCompanyDetails(_userId);
+    } catch (error) {
+      state = state.copyWith(sectionErrorMessage: _errorMessage(error));
+      rethrow;
+    }
+  }
+
   Future<void> loadVehicles() async {
     state = state.copyWith(
       isLoadingVehicles: true,

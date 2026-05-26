@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 
 import '../../../core/api/api_client.dart';
 import '../../../core/api/api_endpoints.dart';
+import '../../../core/api/api_options.dart';
 import '../models/user_subuser_model.dart';
 
 class UserSubUserService {
@@ -11,14 +12,9 @@ class UserSubUserService {
 
   static const int _maxLimit = 100;
 
-  static final Options _readOptions = Options(
-    receiveTimeout: const Duration(seconds: 60),
-  );
+  static final Options _readOptions = normalReadOptions();
 
-  static final Options _mutationOptions = Options(
-    sendTimeout: const Duration(seconds: 60),
-    receiveTimeout: const Duration(seconds: 60),
-  );
+  static final Options _mutationOptions = normalWriteOptions();
 
   Future<UserSubUsersPage> fetchSubUsers({
     String? search,

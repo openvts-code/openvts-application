@@ -73,6 +73,25 @@ class SuperadminAdministratorsController
     }
   }
 
+  Future<List<SuperadminCountryOption>> getCountries() {
+    return _service.getCountries();
+  }
+
+  Future<List<SuperadminMobilePrefixOption>> getMobilePrefixes() {
+    return _service.getMobilePrefixes();
+  }
+
+  Future<List<SuperadminStateOption>> getStates(String countryCode) {
+    return _service.getStates(countryCode);
+  }
+
+  Future<List<SuperadminCityOption>> getCities(
+    String countryCode,
+    String stateCode,
+  ) {
+    return _service.getCities(countryCode, stateCode);
+  }
+
   void setSearchQuery(String value) {
     state = state.copyWith(
       searchQuery: value,

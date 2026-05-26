@@ -84,6 +84,22 @@ class AdminVehiclesController extends StateNotifier<AdminVehiclesState> {
     }
   }
 
+  Future<AdminCreateVehicleCatalog> getCreateVehicleCatalog() async {
+    final results = await Future.wait<dynamic>([
+      _service.getUsers(),
+      _service.getQuickDevices(),
+      _service.getVehicleTypes(),
+      _service.getPricingPlans(),
+    ]);
+
+    return AdminCreateVehicleCatalog(
+      users: results[0] as List<AdminVehicleUserMini>,
+      devices: results[1] as List<AdminQuickDeviceOption>,
+      vehicleTypes: results[2] as List<AdminVehicleTypeOption>,
+      plans: results[3] as List<AdminPricingPlanOption>,
+    );
+  }
+
   Future<bool> updateVehicleStatus(
       {required String id, required bool isActive}) async {
     final current = state.vehicles;
@@ -211,4 +227,18 @@ class AdminVehiclesController extends StateNotifier<AdminVehiclesState> {
     }
     return message.isEmpty ? 'Unable to complete request.' : message;
   }
+}
+
+class AdminCreateVehicleCatalog {
+  const AdminCreateVehicleCatalog({
+    required this.users,
+    required this.devices,
+    required this.vehicleTypes,
+    required this.plans,
+  });
+
+  final List<AdminVehicleUserMini> users;
+  final List<AdminQuickDeviceOption> devices;
+  final List<AdminVehicleTypeOption> vehicleTypes;
+  final List<AdminPricingPlanOption> plans;
 }

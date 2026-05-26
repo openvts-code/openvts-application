@@ -84,7 +84,7 @@ class _UserShareTrackLinkFormSheetState
   }
 
   Future<List<UserShareTrackVehicle>> _loadVehicles() {
-    return ref.read(userShareTrackLinkServiceProvider).getVehicles();
+    return ref.read(userShareTrackLinkControllerProvider.notifier).getVehicles();
   }
 
   Future<void> _loadLatestDetails(String id) async {

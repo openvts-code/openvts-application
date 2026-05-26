@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 
 import '../../../core/api/api_client.dart';
 import '../../../core/api/api_endpoints.dart';
+import '../../../core/api/api_options.dart';
 import '../models/admin_logs_model.dart';
 
 class AdminLogsService {
@@ -9,9 +10,7 @@ class AdminLogsService {
 
   final ApiClient _apiClient;
 
-  static final Options _readOptions = Options(
-    receiveTimeout: const Duration(seconds: 60),
-  );
+  static final Options _readOptions = heavyReadOptions();
 
   Future<AdminLogsOptions> getOptions() async {
     final response = await _apiClient.get<dynamic>(

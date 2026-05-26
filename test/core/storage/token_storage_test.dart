@@ -63,6 +63,21 @@ void main() {
     expect(await tokenStorage.getActiveSession(), isNull);
   });
 
+  test('serves repeated active token reads from hydrated cache', () async {
+    await saveSession(UserRole.user);
+
+    expect(await tokenStorage.getActiveAccessToken(), 'access-user');
+    expect(tokenStorage.cachedActiveAccessToken, 'access-user');
+
+    await secureStorage.write(
+      key: StorageKeys.accessTokenForRole(UserRole.user.apiValue),
+      value: 'changed-in-secure-storage',
+    );
+
+    expect(await tokenStorage.getActiveAccessToken(), 'access-user');
+    expect(tokenStorage.cachedActiveAccessToken, 'access-user');
+  });
+
   test('migrates legacy global session when scoped sessions do not exist',
       () async {
     final legacyUser = _userForRole(UserRole.superadmin);

@@ -14,9 +14,7 @@ class OpenVtsTypography {
   static const String fontFamily = primaryFontFamily;
 
   static const List<String> fontFallback = <String>[
-    secondaryFontFamily,
-    'SF Pro Text',
-    'Segoe UI',
+    primaryFontFamily,
     'Roboto',
     'Arial',
     'sans-serif',

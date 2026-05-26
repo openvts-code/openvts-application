@@ -29,13 +29,7 @@ class UserTopPerformingAssetsWidget extends ConsumerStatefulWidget {
 class _UserTopPerformingAssetsWidgetState
     extends ConsumerState<UserTopPerformingAssetsWidget> {
   _TopAssetsRange _range = _TopAssetsRange.today;
-  late Future<UserDashboardTopAssets> _future;
-
-  @override
-  void initState() {
-    super.initState();
-    _future = _load();
-  }
+  int _refreshKey = 0;
 
   @override
   void didUpdateWidget(covariant UserTopPerformingAssetsWidget oldWidget) {
@@ -46,56 +40,49 @@ class _UserTopPerformingAssetsWidgetState
     }
   }
 
-  Future<UserDashboardTopAssets> _load() {
-    final resolvedRange = _range.resolve();
-    return ref.read(userDashboardServiceProvider).getTopPerformingAssets(
-          from: resolvedRange.from,
-          to: resolvedRange.to,
-          limit:
-              userDashboardPropInt(widget.config.props, const ['limit']) ?? 10,
-        );
-  }
-
-  void _reload() {
-    setState(() {
-      _future = _load();
-    });
-  }
+  void _reload() => setState(() => _refreshKey++);
 
   void _changeRange(Set<_TopAssetsRange> value) {
     if (value.isEmpty) return;
     setState(() {
       _range = value.first;
-      _future = _load();
+      _refreshKey++;
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<UserDashboardTopAssets>(
-      future: _future,
-      builder: (context, snapshot) {
-        final isLoading = snapshot.connectionState != ConnectionState.done;
-        return UserDashboardWidgetCard(
-          title: widget.config.title,
-          icon: Icons.leaderboard_outlined,
-          isLoading: isLoading,
-          onRefresh: _reload,
-          child: _buildBody(snapshot),
-        );
-      },
+    final range = _range.resolve();
+    final state = ref.watch(
+      userDashboardTopAssetsProvider(
+        UserDashboardTopAssetsArgs(
+          widgetId: widget.config.id,
+          refreshKey: _refreshKey,
+          from: range.from,
+          to: range.to,
+          limit:
+              userDashboardPropInt(widget.config.props, const ['limit']) ?? 10,
+        ),
+      ),
+    );
+    return UserDashboardWidgetCard(
+      title: widget.config.title,
+      icon: Icons.leaderboard_outlined,
+      isLoading: state.isLoading,
+      onRefresh: _reload,
+      child: _buildBody(state),
     );
   }
 
-  Widget _buildBody(AsyncSnapshot<UserDashboardTopAssets> snapshot) {
-    if (snapshot.hasError) {
+  Widget _buildBody(AsyncValue<UserDashboardTopAssets> state) {
+    if (state.hasError) {
       return UserDashboardWidgetError(
-        message: snapshot.error.toString(),
+        message: state.error.toString(),
         onRetry: _reload,
       );
     }
 
-    final data = snapshot.data;
+    final data = state.valueOrNull;
     if (data == null) {
       return const _TopAssetsSkeleton();
     }

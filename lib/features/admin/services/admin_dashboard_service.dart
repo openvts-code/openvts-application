@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 
 import '../../../core/api/api_client.dart';
 import '../../../core/api/api_endpoints.dart';
+import '../../../core/api/api_options.dart';
 import '../../../core/config/app_config.dart';
 import '../models/admin_dashboard_model.dart';
 
@@ -10,9 +11,7 @@ class AdminDashboardService {
 
   final ApiClient _apiClient;
 
-  static final Options _readOptions = Options(
-    receiveTimeout: const Duration(seconds: 60),
-  );
+  static final Options _readOptions = normalReadOptions();
 
   Future<AdminDashboardSummary> getDashboardSummary({
     String? currency,

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/providers/core_providers.dart';
@@ -22,6 +24,7 @@ import '../controllers/user_support_controller.dart';
 import '../controllers/user_transactions_controller.dart';
 import '../controllers/user_vehicle_details_controller.dart';
 import '../controllers/user_vehicles_controller.dart';
+import '../models/user_dashboard_model.dart';
 import '../models/user_dashboard_state.dart';
 import '../models/user_driver_model.dart';
 import '../models/user_drivers_state.dart';
@@ -184,6 +187,330 @@ final userDashboardControllerProvider = StateNotifierProvider.autoDispose<
   return controller;
 });
 
+class UserDashboardRefreshArgs {
+  const UserDashboardRefreshArgs({
+    required this.widgetId,
+    required this.refreshKey,
+  });
+
+  final String widgetId;
+  final int refreshKey;
+
+  bool get forceRefresh => refreshKey > 0;
+
+  @override
+  bool operator ==(Object other) {
+    return other is UserDashboardRefreshArgs &&
+        other.widgetId == widgetId &&
+        other.refreshKey == refreshKey;
+  }
+
+  @override
+  int get hashCode => Object.hash(widgetId, refreshKey);
+}
+
+class UserDashboardVehicleScopedArgs extends UserDashboardRefreshArgs {
+  const UserDashboardVehicleScopedArgs({
+    required super.widgetId,
+    required super.refreshKey,
+    required this.vehicleId,
+  });
+
+  final String? vehicleId;
+
+  @override
+  bool operator ==(Object other) {
+    return other is UserDashboardVehicleScopedArgs &&
+        other.widgetId == widgetId &&
+        other.refreshKey == refreshKey &&
+        other.vehicleId == vehicleId;
+  }
+
+  @override
+  int get hashCode => Object.hash(widgetId, refreshKey, vehicleId);
+}
+
+class UserDashboardTopAssetsArgs extends UserDashboardRefreshArgs {
+  const UserDashboardTopAssetsArgs({
+    required super.widgetId,
+    required super.refreshKey,
+    required this.from,
+    required this.to,
+    required this.limit,
+  });
+
+  final DateTime from;
+  final DateTime to;
+  final int limit;
+
+  @override
+  bool operator ==(Object other) {
+    return other is UserDashboardTopAssetsArgs &&
+        other.widgetId == widgetId &&
+        other.refreshKey == refreshKey &&
+        other.from == from &&
+        other.to == to &&
+        other.limit == limit;
+  }
+
+  @override
+  int get hashCode => Object.hash(widgetId, refreshKey, from, to, limit);
+}
+
+class UserDashboardRangeArgs extends UserDashboardVehicleScopedArgs {
+  const UserDashboardRangeArgs({
+    required super.widgetId,
+    required super.refreshKey,
+    required super.vehicleId,
+    required this.from,
+    required this.to,
+  });
+
+  final DateTime from;
+  final DateTime to;
+
+  @override
+  bool operator ==(Object other) {
+    return other is UserDashboardRangeArgs &&
+        other.widgetId == widgetId &&
+        other.refreshKey == refreshKey &&
+        other.vehicleId == vehicleId &&
+        other.from == from &&
+        other.to == to;
+  }
+
+  @override
+  int get hashCode => Object.hash(widgetId, refreshKey, vehicleId, from, to);
+}
+
+class UserDashboardSensorHistoryArgs extends UserDashboardRangeArgs {
+  const UserDashboardSensorHistoryArgs({
+    required super.widgetId,
+    required super.refreshKey,
+    required super.vehicleId,
+    required super.from,
+    required super.to,
+    required this.sensorId,
+  });
+
+  final String? sensorId;
+
+  @override
+  bool operator ==(Object other) {
+    return other is UserDashboardSensorHistoryArgs &&
+        other.widgetId == widgetId &&
+        other.refreshKey == refreshKey &&
+        other.vehicleId == vehicleId &&
+        other.from == from &&
+        other.to == to &&
+        other.sensorId == sensorId;
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(widgetId, refreshKey, vehicleId, from, to, sensorId);
+}
+
+final userDashboardFleetStatusProvider = FutureProvider.autoDispose
+    .family<UserDashboardFleetStatus, UserDashboardRefreshArgs>((ref, args) {
+  return ref
+      .watch(userDashboardControllerProvider.notifier)
+      .getFleetStatus(forceRefresh: args.forceRefresh);
+});
+
+final userDashboardTopAssetsProvider = FutureProvider.autoDispose
+    .family<UserDashboardTopAssets, UserDashboardTopAssetsArgs>((ref, args) {
+  return ref.watch(userDashboardControllerProvider.notifier).getTopPerformingAssets(
+        from: args.from,
+        to: args.to,
+        limit: args.limit,
+        forceRefresh: args.forceRefresh,
+      );
+});
+
+final userDashboardUsageProvider = FutureProvider.autoDispose
+    .family<
+        ({List<UserDashboardVehicleOption> vehicles, UserDashboardUsageLast7Days usage}),
+        UserDashboardVehicleScopedArgs>((ref, args) async {
+  final controller = ref.watch(userDashboardControllerProvider.notifier);
+  final results = await Future.wait<dynamic>([
+    controller.getVehicles(forceRefresh: args.forceRefresh),
+    controller.getUsageLast7Days(
+      vehicleId: args.vehicleId,
+      forceRefresh: args.forceRefresh,
+    ),
+  ]);
+  return (
+    vehicles: results[0] as List<UserDashboardVehicleOption>,
+    usage: results[1] as UserDashboardUsageLast7Days,
+  );
+});
+
+final userDashboardWeeklyProvider = FutureProvider.autoDispose
+    .family<
+        ({
+          List<UserDashboardVehicleOption> vehicles,
+          UserDashboardWeeklyComparison comparison,
+        }),
+        UserDashboardVehicleScopedArgs>((ref, args) async {
+  final controller = ref.watch(userDashboardControllerProvider.notifier);
+  final results = await Future.wait<dynamic>([
+    controller.getVehicles(forceRefresh: args.forceRefresh),
+    controller.getWeeklyComparison(
+      vehicleId: args.vehicleId,
+      forceRefresh: args.forceRefresh,
+    ),
+  ]);
+  return (
+    vehicles: results[0] as List<UserDashboardVehicleOption>,
+    comparison: results[1] as UserDashboardWeeklyComparison,
+  );
+});
+
+final userDashboardDayNightProvider = FutureProvider.autoDispose
+    .family<
+        ({
+          List<UserDashboardVehicleOption> vehicles,
+          UserDashboardDayNightComparison comparison,
+        }),
+        UserDashboardRangeArgs>((ref, args) async {
+  final controller = ref.watch(userDashboardControllerProvider.notifier);
+  final vehicles = await controller.getVehicles(forceRefresh: args.forceRefresh);
+  final selectedVehicleId = args.vehicleId == 'all' ? null : args.vehicleId;
+  final comparison = await controller.getDayNightComparison(
+    vehicleId: selectedVehicleId,
+    from: args.from,
+    to: args.to,
+  );
+  return (vehicles: vehicles, comparison: comparison);
+});
+
+final userDashboardSensorHistoryProvider = FutureProvider.autoDispose
+    .family<
+        ({
+          List<UserDashboardVehicleOption> vehicles,
+          List<UserDashboardSensorOption> sensors,
+          String? selectedVehicleId,
+          String? selectedSensorId,
+          UserDashboardSensorHistory? history,
+          String? emptyMessage,
+        }),
+        UserDashboardSensorHistoryArgs>((ref, args) async {
+  final controller = ref.watch(userDashboardControllerProvider.notifier);
+  final vehicles = await controller.getVehicles(forceRefresh: args.forceRefresh);
+  if (vehicles.isEmpty) {
+    return (
+      vehicles: vehicles,
+      sensors: const <UserDashboardSensorOption>[],
+      selectedVehicleId: null,
+      selectedSensorId: null,
+      history: null,
+      emptyMessage: 'No vehicles available.',
+    );
+  }
+
+  final requestedVehicleId = args.vehicleId;
+  final vehicleId = requestedVehicleId != null &&
+          vehicles.any((vehicle) => vehicle.id == requestedVehicleId)
+      ? requestedVehicleId
+      : vehicles.first.id;
+  final sensors = await controller.getVehicleSensors(vehicleId);
+  if (sensors.isEmpty) {
+    final vehicleName = vehicles
+        .firstWhere((vehicle) => vehicle.id == vehicleId, orElse: () => vehicles.first)
+        .name;
+    return (
+      vehicles: vehicles,
+      sensors: sensors,
+      selectedVehicleId: vehicleId,
+      selectedSensorId: null,
+      history: null,
+      emptyMessage: 'No sensors available for $vehicleName.',
+    );
+  }
+
+  final requestedSensorId = args.sensorId;
+  final sensorId = requestedSensorId != null &&
+          sensors.any((sensor) => sensor.id == requestedSensorId)
+      ? requestedSensorId
+      : sensors.first.id;
+  final history = await controller.getSensorHistory(
+    vehicleId: vehicleId,
+    sensorId: sensorId,
+    from: args.from,
+    to: args.to,
+    maxPoints: 500,
+  );
+  return (
+    vehicles: vehicles,
+    sensors: sensors,
+    selectedVehicleId: vehicleId,
+    selectedSensorId: sensorId,
+    history: history,
+    emptyMessage: null,
+  );
+});
+
+final userDashboardRecentAlertsProvider = FutureProvider.autoDispose
+    .family<
+        ({
+          List<UserDashboardVehicleOption> vehicles,
+          UserDashboardRecentAlertsPage page,
+        }),
+        UserDashboardVehicleScopedArgs>((ref, args) async {
+  final controller = ref.watch(userDashboardControllerProvider.notifier);
+  final vehicles = await controller.getVehicles(forceRefresh: args.forceRefresh);
+  final selectedVehicleId = args.vehicleId == 'all' ? null : args.vehicleId;
+  final page = await controller.getRecentAlerts(
+    vehicleId: selectedVehicleId,
+    limit: 30,
+    refreshKey: args.forceRefresh
+        ? DateTime.now().millisecondsSinceEpoch.toString()
+        : null,
+    forceRefresh: args.forceRefresh,
+  );
+  return (vehicles: vehicles, page: page);
+});
+
+final userDashboardRecentAlertDetailProvider =
+    FutureProvider.autoDispose.family<UserDashboardAlertDetail, String>(
+  (ref, id) {
+    return ref
+        .watch(userDashboardControllerProvider.notifier)
+        .getRecentAlertDetail(id);
+  },
+);
+
+final userDashboardSendCommandProvider = FutureProvider.autoDispose
+    .family<
+        ({
+          List<UserDashboardVehicleOption> allVehicles,
+          List<UserDashboardVehicleOption> vehicles,
+          List<UserDashboardCustomCommand> commands,
+          List<UserDashboardSystemVariable> variables,
+        }),
+        UserDashboardRefreshArgs>((ref, args) async {
+  final controller = ref.watch(userDashboardControllerProvider.notifier);
+  final results = await Future.wait<dynamic>([
+    controller.getVehicles(forceRefresh: args.forceRefresh),
+    controller.getCustomCommands(),
+    controller.getSystemVariables(),
+  ]);
+  final allVehicles = results[0] as List<UserDashboardVehicleOption>;
+  return (
+    allVehicles: allVehicles,
+    vehicles: allVehicles
+        .where((vehicle) => !vehicle.isLicenseBlocked)
+        .toList(growable: false),
+    commands: (results[1] as List<UserDashboardCustomCommand>)
+        .where((command) => command.isActive)
+        .toList(growable: false),
+    variables: (results[2] as List<UserDashboardSystemVariable>)
+        .where((variable) => variable.isActive)
+        .toList(growable: false),
+  );
+});
+
 final userVehiclesControllerProvider = StateNotifierProvider.autoDispose<
     UserVehiclesController, UserVehiclesState>((ref) {
   final controller = UserVehiclesController(
@@ -268,6 +595,20 @@ final userNotificationCenterProvider = StateNotifierProvider.autoDispose<
   );
   controller.load();
   return controller;
+});
+
+final userNotificationUnreadBadgeProvider =
+    FutureProvider.autoDispose<int>((ref) async {
+  final cacheLink = ref.keepAlive();
+  final cacheTimer = Timer(const Duration(seconds: 30), cacheLink.close);
+  ref.onDispose(cacheTimer.cancel);
+
+  try {
+    final service = ref.watch(userNotificationServiceProvider);
+    return await service.getUnreadBadgeCountLightweight();
+  } catch (_) {
+    return 0;
+  }
 });
 
 final userNotificationSettingsControllerProvider =

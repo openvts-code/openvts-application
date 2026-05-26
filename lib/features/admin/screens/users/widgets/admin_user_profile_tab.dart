@@ -215,7 +215,7 @@ Future<void> _showAdminUserEditCompanySheetWithProfile({
       initialCompany: profile.company,
       fallbackName: profile.companyName,
       loadCompany: () {
-        return ref.read(adminUserDetailsServiceProvider).getCompanyDetails(userId);
+        return controller.getCompanyDetails();
       },
       onSubmit: (request) async {
         final ok = await controller.updateCompany(request);

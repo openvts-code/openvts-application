@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 
 import '../../../core/api/api_client.dart';
 import '../../../core/api/api_endpoints.dart';
+import '../../../core/api/api_options.dart';
 import '../models/admin_team_model.dart';
 
 class AdminTeamService {
@@ -9,14 +10,9 @@ class AdminTeamService {
 
   final ApiClient _apiClient;
 
-  static final Options _readOptions = Options(
-    receiveTimeout: const Duration(seconds: 60),
-  );
+  static final Options _readOptions = normalReadOptions();
 
-  static final Options _mutationOptions = Options(
-    sendTimeout: const Duration(seconds: 60),
-    receiveTimeout: const Duration(seconds: 60),
-  );
+  static final Options _mutationOptions = normalWriteOptions();
 
   Future<List<AdminTeamListItem>> getTeams({String? refreshKey}) async {
     final response = await _apiClient.get<dynamic>(

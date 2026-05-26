@@ -74,9 +74,8 @@ class UserHomeScreen extends ConsumerWidget {
     final authState = ref.watch(authControllerProvider);
     final user = authState.user;
     final baseUrl = ref.watch(apiBaseUrlProvider);
-    final unreadCount = ref.watch(
-      userNotificationCenterProvider.select((state) => state.unreadCount),
-    );
+    final unreadAsync = ref.watch(userNotificationUnreadBadgeProvider);
+    final unreadCount = unreadAsync.maybeWhen(data: (v) => v, orElse: () => 0);
 
     return OpenVtsRoleHome(
       displayName: user?.name.isNotEmpty == true ? user!.name : 'User',
@@ -85,8 +84,10 @@ class UserHomeScreen extends ConsumerWidget {
       items: _items,
       onToggleTheme: () => ref.read(themeModeProvider.notifier).toggle(),
       notificationBadgeCount: unreadCount,
-      onNotificationsPressed: () =>
-          context.push(RoutePaths.userNotificationCenter),
+      onNotificationsPressed: () {
+        ref.invalidate(userNotificationUnreadBadgeProvider);
+        context.push(RoutePaths.userNotificationCenter);
+      },
       onProfilePressed: () => context.push(RoutePaths.userProfile),
     );
   }

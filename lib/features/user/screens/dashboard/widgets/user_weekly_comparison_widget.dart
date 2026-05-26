@@ -30,7 +30,7 @@ class _UserWeeklyComparisonWidgetState
     extends ConsumerState<UserWeeklyComparisonWidget> {
   late String _selectedVehicleId;
   _WeeklyMetric _metric = _WeeklyMetric.drivenKm;
-  late Future<_WeeklyViewData> _future;
+  int _refreshKey = 0;
 
   @override
   void initState() {
@@ -40,7 +40,6 @@ class _UserWeeklyComparisonWidgetState
           const ['vehicleId', 'vehicle_id'],
         ) ??
         'all';
-    _future = _load();
   }
 
   @override
@@ -52,30 +51,13 @@ class _UserWeeklyComparisonWidgetState
     }
   }
 
-  Future<_WeeklyViewData> _load() async {
-    final service = ref.read(userDashboardServiceProvider);
-    final vehicleId = _selectedVehicleId == 'all' ? null : _selectedVehicleId;
-    final results = await Future.wait<dynamic>([
-      service.getVehicles(),
-      service.getWeeklyComparison(vehicleId: vehicleId),
-    ]);
-    return _WeeklyViewData(
-      vehicles: results[0] as List<UserDashboardVehicleOption>,
-      comparison: results[1] as UserDashboardWeeklyComparison,
-    );
-  }
-
-  void _reload() {
-    setState(() {
-      _future = _load();
-    });
-  }
+  void _reload() => setState(() => _refreshKey++);
 
   void _changeVehicle(String? value) {
     if (value == null || value == _selectedVehicleId) return;
     setState(() {
       _selectedVehicleId = value;
-      _future = _load();
+      _refreshKey++;
     });
   }
 
@@ -86,30 +68,41 @@ class _UserWeeklyComparisonWidgetState
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<_WeeklyViewData>(
-      future: _future,
-      builder: (context, snapshot) {
-        final isLoading = snapshot.connectionState != ConnectionState.done;
-        return UserDashboardWidgetCard(
-          title: widget.config.title,
-          icon: Icons.compare_arrows_rounded,
-          isLoading: isLoading,
-          onRefresh: _reload,
-          child: _buildBody(snapshot),
-        );
-      },
+    final state = ref.watch(
+      userDashboardWeeklyProvider(
+        UserDashboardVehicleScopedArgs(
+          widgetId: widget.config.id,
+          refreshKey: _refreshKey,
+          vehicleId:
+              _selectedVehicleId == 'all' ? null : _selectedVehicleId,
+        ),
+      ),
+    );
+    return UserDashboardWidgetCard(
+      title: widget.config.title,
+      icon: Icons.compare_arrows_rounded,
+      isLoading: state.isLoading,
+      onRefresh: _reload,
+      child: _buildBody(state),
     );
   }
 
-  Widget _buildBody(AsyncSnapshot<_WeeklyViewData> snapshot) {
-    if (snapshot.hasError) {
+  Widget _buildBody(
+    AsyncValue<
+            ({
+              List<UserDashboardVehicleOption> vehicles,
+              UserDashboardWeeklyComparison comparison,
+            })>
+        state,
+  ) {
+    if (state.hasError) {
       return UserDashboardWidgetError(
-        message: snapshot.error.toString(),
+        message: state.error.toString(),
         onRetry: _reload,
       );
     }
 
-    final data = snapshot.data;
+    final data = state.valueOrNull;
     if (data == null) {
       return const _WeeklySkeleton();
     }
@@ -482,11 +475,4 @@ enum _WeeklyMetric {
         return userDashboardFormatHours(value);
     }
   }
-}
-
-class _WeeklyViewData {
-  const _WeeklyViewData({required this.vehicles, required this.comparison});
-
-  final List<UserDashboardVehicleOption> vehicles;
-  final UserDashboardWeeklyComparison comparison;
 }

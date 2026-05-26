@@ -89,11 +89,8 @@ class AdminHomeScreen extends ConsumerWidget {
     final authState = ref.watch(authControllerProvider);
     final user = authState.user;
     final baseUrl = ref.watch(apiBaseUrlProvider);
-    final unreadCount = ref.watch(
-      adminNotificationCenterProvider.select(
-        (state) => state.unreadCount,
-      ),
-    );
+    final unreadAsync = ref.watch(adminNotificationUnreadBadgeProvider);
+    final unreadCount = unreadAsync.maybeWhen(data: (v) => v, orElse: () => 0);
 
     return OpenVtsRoleHome(
       displayName: user?.name.isNotEmpty == true ? user!.name : 'Admin',
@@ -102,7 +99,10 @@ class AdminHomeScreen extends ConsumerWidget {
       items: _items,
       onToggleTheme: () => ref.read(themeModeProvider.notifier).toggle(),
       notificationBadgeCount: unreadCount,
-      onNotificationsPressed: () => context.push(RoutePaths.adminNotifications),
+      onNotificationsPressed: () {
+        ref.invalidate(adminNotificationUnreadBadgeProvider);
+        context.push(RoutePaths.adminNotifications);
+      },
       onProfilePressed: () => context.push(RoutePaths.adminProfile),
     );
   }

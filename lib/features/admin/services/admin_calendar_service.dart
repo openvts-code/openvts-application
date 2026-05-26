@@ -2,15 +2,14 @@ import 'package:dio/dio.dart';
 
 import '../../../core/api/api_client.dart';
 import '../../../core/api/api_endpoints.dart';
+import '../../../core/api/api_options.dart';
 import '../../../shared/models/api_result.dart';
 import '../models/admin_calendar_model.dart';
 
 class AdminCalendarService {
   AdminCalendarService(this._apiClient);
 
-  static final Options _readOptions = Options(
-    receiveTimeout: const Duration(seconds: 60),
-  );
+  static final Options _readOptions = normalReadOptions();
 
   static const Map<String, String> _apiTypesByCalendarFilter = {
     'users': 'USER_CREATED',

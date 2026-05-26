@@ -2,51 +2,55 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/config/app_constants.dart';
+import '../../../core/performance/open_vts_perf.dart';
 import '../models/app_notification.dart';
 import '../models/notification_center_state.dart';
 import '../services/notification_service.dart';
 
-class NotificationCenterController extends StateNotifier<NotificationCenterState> {
+class NotificationCenterController
+    extends StateNotifier<NotificationCenterState> {
   NotificationCenterController(this._service)
       : super(const NotificationCenterState.initial());
 
   final NotificationService _service;
 
-  Future<void> load({bool refresh = false}) async {
-    final shouldShowFullScreenLoader = !state.hasItems && !refresh;
-
-    state = state.copyWith(
-      isInitialLoading: shouldShowFullScreenLoader,
-      isRefreshing: refresh,
-      isLoadingMore: false,
-      errorMessage: null,
-    );
-
-    try {
-      final page = await _service.getNotifications(
-        limit: AppConstants.defaultPageSize,
-        unreadOnly: state.unreadOnly,
-      );
-      final unreadCount = page.unreadCount ?? await _service.getUnreadCount();
+  Future<void> load({bool refresh = false}) {
+    return OpenVtsPerf.traceAsync('notifications.load', () async {
+      final shouldShowFullScreenLoader = !state.hasItems && !refresh;
 
       state = state.copyWith(
-        items: page.items,
-        unreadCount: unreadCount,
-        hasMore: page.hasMore,
-        nextBeforeId: page.nextBeforeId,
-        isInitialLoading: false,
-        isRefreshing: false,
+        isInitialLoading: shouldShowFullScreenLoader,
+        isRefreshing: refresh,
         isLoadingMore: false,
         errorMessage: null,
       );
-    } catch (error) {
-      state = state.copyWith(
-        isInitialLoading: false,
-        isRefreshing: false,
-        isLoadingMore: false,
-        errorMessage: _toErrorMessage(error),
-      );
-    }
+
+      try {
+        final page = await _service.getNotifications(
+          limit: AppConstants.defaultPageSize,
+          unreadOnly: state.unreadOnly,
+        );
+        final unreadCount = page.unreadCount ?? await _service.getUnreadCount();
+
+        state = state.copyWith(
+          items: page.items,
+          unreadCount: unreadCount,
+          hasMore: page.hasMore,
+          nextBeforeId: page.nextBeforeId,
+          isInitialLoading: false,
+          isRefreshing: false,
+          isLoadingMore: false,
+          errorMessage: null,
+        );
+      } catch (error) {
+        state = state.copyWith(
+          isInitialLoading: false,
+          isRefreshing: false,
+          isLoadingMore: false,
+          errorMessage: _toErrorMessage(error),
+        );
+      }
+    });
   }
 
   Future<void> refresh() {

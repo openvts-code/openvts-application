@@ -28,12 +28,13 @@ class UserRecentAlertsWidget extends ConsumerStatefulWidget {
 
 class _UserRecentAlertsWidgetState
     extends ConsumerState<UserRecentAlertsWidget> {
-  static const _refreshInterval = Duration(seconds: 10);
+  static const _refreshInterval = Duration(seconds: 30);
 
   late String _selectedVehicleId;
-  late Future<_RecentAlertsViewData> _future;
   final Set<String> _locallyReadIds = <String>{};
   Timer? _refreshTimer;
+  bool _isRequestInFlight = false;
+  int _refreshKey = 0;
 
   @override
   void initState() {
@@ -43,7 +44,6 @@ class _UserRecentAlertsWidgetState
           const ['vehicleId', 'vehicle_id'],
         ) ??
         'all';
-    _future = _load();
     _startRefreshTimer();
   }
 
@@ -52,7 +52,7 @@ class _UserRecentAlertsWidgetState
     super.didUpdateWidget(oldWidget);
     if (oldWidget.refreshTick != widget.refreshTick ||
         oldWidget.config.id != widget.config.id) {
-      _reload();
+      _reload(forceRefresh: true);
     }
   }
 
@@ -60,19 +60,6 @@ class _UserRecentAlertsWidgetState
   void dispose() {
     _refreshTimer?.cancel();
     super.dispose();
-  }
-
-  Future<_RecentAlertsViewData> _load() async {
-    final service = ref.read(userDashboardServiceProvider);
-    final vehicles = await service.getVehicles();
-    final selectedVehicleId = _validatedVehicleId(vehicles);
-    final vehicleId = selectedVehicleId == 'all' ? null : selectedVehicleId;
-    final page = await service.getRecentAlerts(
-      vehicleId: vehicleId,
-      limit: 30,
-      refreshKey: DateTime.now().millisecondsSinceEpoch.toString(),
-    );
-    return _RecentAlertsViewData(vehicles: vehicles, page: page);
   }
 
   void _startRefreshTimer() {
@@ -83,17 +70,21 @@ class _UserRecentAlertsWidgetState
     });
   }
 
-  void _reload() {
-    setState(() {
-      _future = _load();
-    });
+  void _reload({bool forceRefresh = false}) {
+    if (_isRequestInFlight) {
+      return;
+    }
+    setState(() => _refreshKey++);
   }
 
   void _changeVehicle(String? value) {
     if (value == null || value == _selectedVehicleId) return;
+    if (_isRequestInFlight) {
+      return;
+    }
     setState(() {
       _selectedVehicleId = value;
-      _future = _load();
+      _refreshKey++;
     });
   }
 
@@ -112,8 +103,8 @@ class _UserRecentAlertsWidgetState
   Future<void> _openAlertDetail(UserDashboardAlertItem item) async {
     if (item.id.trim().isEmpty) return;
 
-    final service = ref.read(userDashboardServiceProvider);
-    final detailFuture = service.getRecentAlertDetail(item.id);
+    final detailProvider = userDashboardRecentAlertDetailProvider(item.id);
+    final detailFuture = ref.read(detailProvider.future);
     if (!_isRead(item)) {
       unawaited(_markReadAfterDetail(detailFuture, item.id));
     }
@@ -140,7 +131,7 @@ class _UserRecentAlertsWidgetState
                     constraints: const BoxConstraints(maxWidth: 560),
                     child: _AlertDetailSheet(
                       initialItem: item,
-                      detailFuture: detailFuture,
+                      detailProvider: detailProvider,
                       scrollController: scrollController,
                     ),
                   ),
@@ -159,7 +150,9 @@ class _UserRecentAlertsWidgetState
   ) async {
     try {
       await detailFuture;
-      await ref.read(userDashboardServiceProvider).markRecentAlertRead(id);
+      await ref
+          .read(userDashboardControllerProvider.notifier)
+          .markRecentAlertRead(id);
       if (!mounted) return;
       setState(() => _locallyReadIds.add(id));
     } catch (_) {
@@ -169,30 +162,42 @@ class _UserRecentAlertsWidgetState
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<_RecentAlertsViewData>(
-      future: _future,
-      builder: (context, snapshot) {
-        final isLoading = snapshot.connectionState != ConnectionState.done;
-        return UserDashboardWidgetCard(
-          title: widget.config.title,
-          icon: Icons.notifications_active_outlined,
-          isLoading: isLoading,
-          onRefresh: _reload,
-          child: _buildBody(snapshot),
-        );
-      },
+    final state = ref.watch(
+      userDashboardRecentAlertsProvider(
+        UserDashboardVehicleScopedArgs(
+          widgetId: widget.config.id,
+          refreshKey: _refreshKey,
+          vehicleId:
+              _selectedVehicleId == 'all' ? null : _selectedVehicleId,
+        ),
+      ),
+    );
+    _isRequestInFlight = state.isLoading;
+    return UserDashboardWidgetCard(
+      title: widget.config.title,
+      icon: Icons.notifications_active_outlined,
+      isLoading: state.isLoading,
+      onRefresh: () => _reload(forceRefresh: true),
+      child: _buildBody(state),
     );
   }
 
-  Widget _buildBody(AsyncSnapshot<_RecentAlertsViewData> snapshot) {
-    if (snapshot.hasError) {
+  Widget _buildBody(
+    AsyncValue<
+            ({
+              List<UserDashboardVehicleOption> vehicles,
+              UserDashboardRecentAlertsPage page,
+            })>
+        state,
+  ) {
+    if (state.hasError) {
       return UserDashboardWidgetError(
-        message: snapshot.error.toString(),
-        onRetry: _reload,
+        message: state.error.toString(),
+        onRetry: () => _reload(forceRefresh: true),
       );
     }
 
-    final data = snapshot.data;
+    final data = state.valueOrNull;
     if (data == null) {
       return const _RecentAlertsSkeleton();
     }
@@ -421,36 +426,36 @@ class _AlertRow extends StatelessWidget {
 class _AlertDetailSheet extends StatelessWidget {
   const _AlertDetailSheet({
     required this.initialItem,
-    required this.detailFuture,
+    required this.detailProvider,
     required this.scrollController,
   });
 
   final UserDashboardAlertItem initialItem;
-  final Future<UserDashboardAlertDetail> detailFuture;
+  final AutoDisposeFutureProvider<UserDashboardAlertDetail> detailProvider;
   final ScrollController scrollController;
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: const BoxDecoration(
-        color: OpenVtsColors.surfaceElevated,
-        borderRadius:
-            BorderRadius.vertical(top: Radius.circular(OpenVtsRadius.lg)),
-      ),
-      child: FutureBuilder<UserDashboardAlertDetail>(
-        future: detailFuture,
-        builder: (context, snapshot) {
-          final alert = snapshot.data ?? initialItem;
+    return Consumer(
+      builder: (context, ref, _) {
+        final state = ref.watch(detailProvider);
+        final alert = state.valueOrNull ?? initialItem;
           final severity = _SeverityStyle.from(alert);
-          return ListView(
-            controller: scrollController,
-            padding: const EdgeInsets.fromLTRB(
-              OpenVtsSpacing.md,
-              OpenVtsSpacing.sm,
-              OpenVtsSpacing.md,
-              OpenVtsSpacing.lg,
-            ),
-            children: [
+        return DecoratedBox(
+          decoration: const BoxDecoration(
+            color: OpenVtsColors.surfaceElevated,
+            borderRadius:
+                BorderRadius.vertical(top: Radius.circular(OpenVtsRadius.lg)),
+          ),
+          child: ListView(
+          controller: scrollController,
+          padding: const EdgeInsets.fromLTRB(
+            OpenVtsSpacing.md,
+            OpenVtsSpacing.sm,
+            OpenVtsSpacing.md,
+            OpenVtsSpacing.lg,
+          ),
+          children: [
               Center(
                 child: Container(
                   width: 36,
@@ -533,27 +538,27 @@ class _AlertDetailSheet extends StatelessWidget {
                   ),
                 ),
               ],
-              if (snapshot.connectionState != ConnectionState.done) ...[
+              if (state.isLoading) ...[
                 const SizedBox(height: OpenVtsSpacing.md),
                 const LinearProgressIndicator(minHeight: 2),
               ],
-              if (snapshot.hasError) ...[
+              if (state.hasError) ...[
                 const SizedBox(height: OpenVtsSpacing.md),
-                UserDashboardWidgetError(message: snapshot.error.toString()),
+                UserDashboardWidgetError(message: state.error.toString()),
               ],
-              if (snapshot.data != null &&
-                  snapshot.data!.deliveries.isNotEmpty) ...[
+              if (state.valueOrNull != null &&
+                  state.valueOrNull!.deliveries.isNotEmpty) ...[
                 const SizedBox(height: OpenVtsSpacing.md),
                 _DetailSection(
                   title: 'Delivery Logs',
                   child:
-                      _DeliveryLogList(deliveries: snapshot.data!.deliveries),
+                      _DeliveryLogList(deliveries: state.valueOrNull!.deliveries),
                 ),
               ],
             ],
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
   }
 
@@ -784,13 +789,6 @@ class _RecentAlertsSkeleton extends StatelessWidget {
   Widget build(BuildContext context) {
     return const SizedBox(height: 180);
   }
-}
-
-class _RecentAlertsViewData {
-  const _RecentAlertsViewData({required this.vehicles, required this.page});
-
-  final List<UserDashboardVehicleOption> vehicles;
-  final UserDashboardRecentAlertsPage page;
 }
 
 class _SeverityStyle {

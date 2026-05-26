@@ -14,7 +14,11 @@ class SocketService {
   final String _apiBaseUrl;
 
   Future<SocketConnection> connect(String namespace) async {
-    final token = await _tokenStorage.getActiveAccessToken();
+    var token = _tokenStorage.cachedActiveAccessToken;
+    if (token == null && !_tokenStorage.isCacheHydrated) {
+      await _tokenStorage.hydrateCache();
+      token = _tokenStorage.cachedActiveAccessToken;
+    }
     final url = socketUrlForApiBase(_apiBaseUrl, namespace);
 
     final options = io.OptionBuilder()

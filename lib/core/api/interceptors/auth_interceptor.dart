@@ -12,7 +12,12 @@ class AuthInterceptor extends Interceptor {
     RequestOptions options,
     RequestInterceptorHandler handler,
   ) async {
-    final token = await _tokenStorage.getActiveAccessToken();
+    var token = _tokenStorage.cachedActiveAccessToken;
+    if (token == null && !_tokenStorage.isCacheHydrated) {
+      await _tokenStorage.hydrateCache();
+      token = _tokenStorage.cachedActiveAccessToken;
+    }
+
     if (token != null && token.isNotEmpty) {
       options.headers['Authorization'] = 'Bearer $token';
     }

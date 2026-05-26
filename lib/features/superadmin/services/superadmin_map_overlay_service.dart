@@ -5,15 +5,14 @@ import 'package:latlong2/latlong.dart';
 
 import '../../../core/api/api_client.dart';
 import '../../../core/api/api_endpoints.dart';
+import '../../../core/api/api_options.dart';
 import '../../../core/config/app_config.dart';
 import '../models/superadmin_map_overlay_model.dart';
 
 class SuperadminMapOverlayService {
   SuperadminMapOverlayService(this._apiClient);
 
-  static final Options _readOptions = Options(
-    receiveTimeout: const Duration(seconds: 60),
-  );
+  static final Options _readOptions = heavyReadOptions();
 
   final ApiClient _apiClient;
 

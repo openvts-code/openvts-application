@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import 'open_vts_colors.dart';
 import 'open_vts_radius.dart';
@@ -9,7 +8,9 @@ class OpenVtsTheme {
   const OpenVtsTheme._();
 
   static TextTheme _interTextTheme(ThemeData base, Color textColor) {
-    return GoogleFonts.interTextTheme(base.textTheme).apply(
+    return base.textTheme.apply(
+      fontFamily: OpenVtsTypography.primaryFontFamily,
+      fontFamilyFallback: OpenVtsTypography.fontFallback,
       bodyColor: textColor,
       displayColor: textColor,
     );
@@ -40,7 +41,8 @@ class OpenVtsTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: OpenVtsColors.white,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(OpenVtsRadius.md),
           borderSide: const BorderSide(color: OpenVtsColors.border),

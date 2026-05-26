@@ -4,6 +4,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../../features/auth/models/current_user.dart';
 import '../../shared/models/user_role.dart';
+import '../performance/open_vts_perf.dart';
 import 'storage_keys.dart';
 
 class RoleSession {
@@ -30,7 +31,61 @@ class TokenStorage {
   ];
 
   final FlutterSecureStorage _storage;
+  bool _cacheHydrated = false;
+  final Map<UserRole, RoleSession?> _roleSessionCache =
+      <UserRole, RoleSession?>{};
+  RoleSession? _activeSessionCache;
+  Future<void>? _cacheHydration;
   bool _didCheckLegacyMigration = false;
+
+  bool get isCacheHydrated => _cacheHydrated;
+
+  String? get cachedActiveAccessToken {
+    if (!_cacheHydrated) return null;
+    final token = _activeSessionCache?.accessToken.trim();
+    return token == null || token.isEmpty ? null : token;
+  }
+
+  RoleSession? get cachedActiveSession {
+    if (!_cacheHydrated) return null;
+    return _activeSessionCache;
+  }
+
+  Future<void> hydrateCache() {
+    if (_cacheHydrated) return Future<void>.value();
+
+    final hydration = _cacheHydration;
+    if (hydration != null) return hydration;
+
+    final future = OpenVtsPerf.traceAsync('token.hydrateCache', () async {
+      await _hydrateCacheInternal();
+    }).whenComplete(() {
+      _cacheHydration = null;
+    });
+    _cacheHydration = future;
+    return future;
+  }
+
+  void invalidateCache() {
+    _cacheHydration = null;
+    _cacheHydrated = false;
+    _roleSessionCache.clear();
+    _activeSessionCache = null;
+  }
+
+  Future<void> _hydrateCacheInternal() async {
+    if (_cacheHydrated) return;
+
+    await _migrateLegacySessionIfNeeded();
+
+    _roleSessionCache.clear();
+    for (final role in UserRole.values) {
+      _roleSessionCache[role] = await _readRoleSession(role);
+    }
+    _activeSessionCache = _resolveActiveSessionFromCache();
+    _cacheHydrated = true;
+    await _syncActiveRoleKeyFromCache();
+  }
 
   Future<void> saveSessionForRole({
     required UserRole role,
@@ -38,41 +93,83 @@ class TokenStorage {
     required String refreshToken,
     required String currentUserJson,
   }) async {
+    if (!_cacheHydrated && _cacheHydration == null) {
+      await hydrateCache();
+    }
+
+    final normalizedAccessToken = accessToken.trim();
+    final normalizedRefreshToken = refreshToken.trim();
+    final normalizedCurrentUserJson = _normalizedCurrentUserJson(
+      currentUserJson,
+      role,
+    );
+
     await _storage.write(
       key: StorageKeys.accessTokenForRole(role.apiValue),
-      value: accessToken.trim(),
+      value: normalizedAccessToken,
     );
     await _storage.write(
       key: StorageKeys.refreshTokenForRole(role.apiValue),
-      value: refreshToken.trim(),
+      value: normalizedRefreshToken,
     );
     await _storage.write(
       key: StorageKeys.currentUserForRole(role.apiValue),
-      value: _normalizedCurrentUserJson(currentUserJson, role),
+      value: normalizedCurrentUserJson,
     );
     await _storage.write(key: StorageKeys.activeRole, value: role.apiValue);
+
+    _roleSessionCache[role] = RoleSession(
+      role: role,
+      accessToken: normalizedAccessToken,
+      refreshToken: normalizedRefreshToken,
+      user: _parseStoredUser(normalizedCurrentUserJson, role),
+    );
+    _activeSessionCache = _resolveActiveSessionFromCache();
+    _cacheHydrated = true;
+    await _syncActiveRoleKeyFromCache();
   }
 
   Future<String?> getAccessTokenForRole(UserRole role) async {
+    if (_cacheHydrated) {
+      return _roleSessionCache[role]?.accessToken;
+    }
+
     await _migrateLegacySessionIfNeeded();
     return _readNonEmpty(StorageKeys.accessTokenForRole(role.apiValue));
   }
 
   Future<String?> getRefreshTokenForRole(UserRole role) async {
+    if (_cacheHydrated) {
+      return _roleSessionCache[role]?.refreshToken;
+    }
+
     await _migrateLegacySessionIfNeeded();
     return _readNonEmpty(StorageKeys.refreshTokenForRole(role.apiValue));
   }
 
   Future<String?> getCurrentUserJsonForRole(UserRole role) async {
+    if (_cacheHydrated) {
+      final session = _roleSessionCache[role];
+      if (session == null) return null;
+      return jsonEncode(session.user.toJson());
+    }
+
     await _migrateLegacySessionIfNeeded();
     return _readNonEmpty(StorageKeys.currentUserForRole(role.apiValue));
   }
 
   Future<void> clearSessionForRole(UserRole role) async {
+    if (!_cacheHydrated) {
+      await hydrateCache();
+    }
+
     await _storage.delete(key: StorageKeys.accessTokenForRole(role.apiValue));
     await _storage.delete(key: StorageKeys.refreshTokenForRole(role.apiValue));
     await _storage.delete(key: StorageKeys.currentUserForRole(role.apiValue));
-    await _syncActiveRoleKey();
+    _roleSessionCache[role] = null;
+    _activeSessionCache = _resolveActiveSessionFromCache();
+    _cacheHydrated = true;
+    await _syncActiveRoleKeyFromCache();
   }
 
   Future<void> clearAllSessions() async {
@@ -84,43 +181,49 @@ class TokenStorage {
     }
     await _storage.delete(key: StorageKeys.activeRole);
     await _deleteLegacyKeys();
+    _cacheHydration = null;
+    _roleSessionCache.clear();
+    for (final role in UserRole.values) {
+      _roleSessionCache[role] = null;
+    }
+    _activeSessionCache = null;
+    _cacheHydrated = true;
   }
 
   Future<UserRole?> getActiveRoleByPriority() async {
-    await _migrateLegacySessionIfNeeded();
-
-    for (final role in _rolePriority) {
-      if (await _hasSessionForRoleRaw(role)) {
-        await _storage.write(key: StorageKeys.activeRole, value: role.apiValue);
-        return role;
-      }
+    if (!_cacheHydrated) {
+      await hydrateCache();
     }
 
-    await _storage.delete(key: StorageKeys.activeRole);
-    return null;
+    return _activeSessionCache?.role;
   }
 
-  Future<RoleSession?> getActiveSession() async {
-    final role = await getActiveRoleByPriority();
-    if (role == null) {
-      return null;
-    }
+  Future<RoleSession?> getActiveSession() {
+    return OpenVtsPerf.traceAsync('token.getActiveSession', () async {
+      if (!_cacheHydrated) {
+        await hydrateCache();
+      }
 
-    return _readRoleSession(role);
+      return cachedActiveSession;
+    });
   }
 
   Future<bool> hasSessionForRole(UserRole role) async {
-    await _migrateLegacySessionIfNeeded();
-    return _hasSessionForRoleRaw(role);
-  }
-
-  Future<String?> getActiveAccessToken() async {
-    final activeRole = await getActiveRoleByPriority();
-    if (activeRole == null) {
-      return null;
+    if (!_cacheHydrated) {
+      await hydrateCache();
     }
 
-    return _readNonEmpty(StorageKeys.accessTokenForRole(activeRole.apiValue));
+    return _roleSessionCache[role] != null;
+  }
+
+  Future<String?> getActiveAccessToken() {
+    return OpenVtsPerf.traceAsync('token.getActiveAccessToken', () async {
+      if (!_cacheHydrated) {
+        await hydrateCache();
+      }
+
+      return cachedActiveAccessToken;
+    });
   }
 
   Future<void> migrateLegacySessionIfNeeded() {
@@ -154,12 +257,17 @@ class TokenStorage {
   }
 
   @Deprecated('Use role-scoped session methods instead.')
-  Future<void> saveRole(String role) {
-    return _storage.write(key: StorageKeys.activeRole, value: role);
+  Future<void> saveRole(String role) async {
+    await _storage.write(key: StorageKeys.activeRole, value: role);
+    invalidateCache();
   }
 
   @Deprecated('Use getActiveRoleByPriority instead.')
-  Future<String?> getRole() {
+  Future<String?> getRole() async {
+    if (_cacheHydrated) {
+      return _activeSessionCache?.role.apiValue;
+    }
+
     return _storage.read(key: StorageKeys.activeRole);
   }
 
@@ -251,6 +359,30 @@ class TokenStorage {
     }
 
     return _fallbackUser(role);
+  }
+
+  RoleSession? _resolveActiveSessionFromCache() {
+    for (final role in _rolePriority) {
+      final session = _roleSessionCache[role];
+      if (session != null) {
+        return session;
+      }
+    }
+
+    return null;
+  }
+
+  Future<void> _syncActiveRoleKeyFromCache() async {
+    final activeRole = _activeSessionCache?.role;
+    if (activeRole == null) {
+      await _storage.delete(key: StorageKeys.activeRole);
+      return;
+    }
+
+    await _storage.write(
+      key: StorageKeys.activeRole,
+      value: activeRole.apiValue,
+    );
   }
 
   Future<bool> _hasAnyRoleSessionRaw() async {
@@ -346,45 +478,34 @@ class TokenStorage {
   }
 
   Future<void> _saveCurrentUserForActiveRole(String value) async {
-    final activeRole = await getActiveRoleByPriority();
-    if (activeRole == null) {
+    final activeSession = await getActiveSession();
+    if (activeSession == null) {
       return;
     }
 
-    final accessToken = await _readNonEmpty(
-      StorageKeys.accessTokenForRole(activeRole.apiValue),
-    );
-    if (accessToken == null) {
-      return;
-    }
-
-    final refreshToken = (await _storage.read(
-                key: StorageKeys.refreshTokenForRole(activeRole.apiValue)))
-            ?.trim() ??
-        '';
     await saveSessionForRole(
-      role: activeRole,
-      accessToken: accessToken,
-      refreshToken: refreshToken,
+      role: activeSession.role,
+      accessToken: activeSession.accessToken,
+      refreshToken: activeSession.refreshToken,
       currentUserJson: value,
     );
   }
 
   Future<String?> _getCurrentUserForActiveRoleByPriority() async {
-    final role = await getActiveRoleByPriority();
-    if (role == null) {
+    final activeSession = await getActiveSession();
+    if (activeSession == null) {
       return null;
     }
 
-    return _storage.read(key: StorageKeys.currentUserForRole(role.apiValue));
+    return jsonEncode(activeSession.user.toJson());
   }
 
   Future<String?> _getRefreshTokenForRoleRawByPriority() async {
-    final role = await getActiveRoleByPriority();
-    if (role == null) {
+    final activeSession = await getActiveSession();
+    if (activeSession == null) {
       return null;
     }
 
-    return _storage.read(key: StorageKeys.refreshTokenForRole(role.apiValue));
+    return activeSession.refreshToken;
   }
 }

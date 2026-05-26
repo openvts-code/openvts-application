@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 
+import '../performance/open_vts_perf.dart';
 import 'api_exception.dart';
 import 'api_response.dart';
 
@@ -13,13 +14,15 @@ class ApiClient {
     Map<String, dynamic>? queryParameters,
     Options? options,
     required T Function(dynamic json) parser,
-  }) async {
-    final response = await _dio.get<dynamic>(
-      endpoint,
-      queryParameters: queryParameters,
-      options: options,
-    );
-    return _parseResponse(response, parser);
+  }) {
+    return OpenVtsPerf.traceAsync(_apiPerfLabel('GET', endpoint), () async {
+      final response = await _dio.get<dynamic>(
+        endpoint,
+        queryParameters: queryParameters,
+        options: options,
+      );
+      return _parseResponse(response, parser);
+    });
   }
 
   Future<ApiResponse<T>> post<T>(
@@ -28,14 +31,16 @@ class ApiClient {
     Map<String, dynamic>? queryParameters,
     Options? options,
     required T Function(dynamic json) parser,
-  }) async {
-    final response = await _dio.post<dynamic>(
-      endpoint,
-      data: data,
-      queryParameters: queryParameters,
-      options: options,
-    );
-    return _parseResponse(response, parser);
+  }) {
+    return OpenVtsPerf.traceAsync(_apiPerfLabel('POST', endpoint), () async {
+      final response = await _dio.post<dynamic>(
+        endpoint,
+        data: data,
+        queryParameters: queryParameters,
+        options: options,
+      );
+      return _parseResponse(response, parser);
+    });
   }
 
   Future<ApiResponse<T>> put<T>(
@@ -43,13 +48,15 @@ class ApiClient {
     dynamic data,
     Options? options,
     required T Function(dynamic json) parser,
-  }) async {
-    final response = await _dio.put<dynamic>(
-      endpoint,
-      data: data,
-      options: options,
-    );
-    return _parseResponse(response, parser);
+  }) {
+    return OpenVtsPerf.traceAsync(_apiPerfLabel('PUT', endpoint), () async {
+      final response = await _dio.put<dynamic>(
+        endpoint,
+        data: data,
+        options: options,
+      );
+      return _parseResponse(response, parser);
+    });
   }
 
   Future<ApiResponse<T>> patch<T>(
@@ -58,14 +65,16 @@ class ApiClient {
     Map<String, dynamic>? queryParameters,
     Options? options,
     required T Function(dynamic json) parser,
-  }) async {
-    final response = await _dio.patch<dynamic>(
-      endpoint,
-      data: data,
-      queryParameters: queryParameters,
-      options: options,
-    );
-    return _parseResponse(response, parser);
+  }) {
+    return OpenVtsPerf.traceAsync(_apiPerfLabel('PATCH', endpoint), () async {
+      final response = await _dio.patch<dynamic>(
+        endpoint,
+        data: data,
+        queryParameters: queryParameters,
+        options: options,
+      );
+      return _parseResponse(response, parser);
+    });
   }
 
   Future<ApiResponse<T>> delete<T>(
@@ -73,13 +82,39 @@ class ApiClient {
     dynamic data,
     Options? options,
     required T Function(dynamic json) parser,
-  }) async {
-    final response = await _dio.delete<dynamic>(
-      endpoint,
-      data: data,
-      options: options,
-    );
-    return _parseResponse(response, parser);
+  }) {
+    return OpenVtsPerf.traceAsync(_apiPerfLabel('DELETE', endpoint), () async {
+      final response = await _dio.delete<dynamic>(
+        endpoint,
+        data: data,
+        options: options,
+      );
+      return _parseResponse(response, parser);
+    });
+  }
+
+  String _apiPerfLabel(String method, String endpoint) {
+    return 'api.$method ${_safeEndpointForPerf(endpoint)}';
+  }
+
+  String _safeEndpointForPerf(String endpoint) {
+    final normalized = endpoint.trim();
+    if (normalized.isEmpty) {
+      return '/';
+    }
+
+    final parsed = Uri.tryParse(normalized);
+    final path = parsed?.path.trim();
+    if (path != null && path.isNotEmpty) {
+      return path.startsWith('/') ? path : '/$path';
+    }
+
+    final withoutQuery = normalized.split('?').first.split('#').first.trim();
+    if (withoutQuery.isEmpty) {
+      return '/';
+    }
+
+    return withoutQuery.startsWith('/') ? withoutQuery : '/$withoutQuery';
   }
 
   ApiResponse<T> _parseResponse<T>(

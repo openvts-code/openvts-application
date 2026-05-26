@@ -20,6 +20,7 @@ class UserDashboardController extends StateNotifier<UserDashboardState> {
   final LocalCache _localCache;
 
   Future<void> loadInitial() async {
+    _service.invalidateDashboardOverviewCache();
     state = state.copyWith(
       isLoadingDashboards: true,
       isLoadingSelectedDashboard: false,
@@ -61,6 +62,7 @@ class UserDashboardController extends StateNotifier<UserDashboardState> {
   }
 
   Future<void> refresh() async {
+    _service.invalidateDashboardOverviewCache();
     state = state.copyWith(
       isRefreshing: true,
       errorMessage: null,
@@ -137,6 +139,135 @@ class UserDashboardController extends StateNotifier<UserDashboardState> {
 
     await _loadDashboardDetail(selectedId,
         refreshing: state.hasSelectedDashboard);
+  }
+
+  Future<UserDashboardFleetStatus> getFleetStatus({
+    bool forceRefresh = false,
+  }) {
+    return _service.getFleetStatus(forceRefresh: forceRefresh);
+  }
+
+  Future<List<UserDashboardVehicleOption>> getVehicles({
+    bool forceRefresh = false,
+  }) {
+    return _service.getVehicles(forceRefresh: forceRefresh);
+  }
+
+  Future<UserDashboardUsageLast7Days> getUsageLast7Days({
+    String? vehicleId,
+    bool forceRefresh = false,
+  }) {
+    return _service.getUsageLast7Days(
+      vehicleId: vehicleId,
+      forceRefresh: forceRefresh,
+    );
+  }
+
+  Future<UserDashboardWeeklyComparison> getWeeklyComparison({
+    String? vehicleId,
+    bool forceRefresh = false,
+  }) {
+    return _service.getWeeklyComparison(
+      vehicleId: vehicleId,
+      forceRefresh: forceRefresh,
+    );
+  }
+
+  Future<UserDashboardRecentAlertsPage> getRecentAlerts({
+    String? vehicleId,
+    int limit = 30,
+    int? beforeId,
+    String? from,
+    String? refreshKey,
+    bool forceRefresh = false,
+  }) {
+    return _service.getRecentAlerts(
+      vehicleId: vehicleId,
+      limit: limit,
+      beforeId: beforeId,
+      from: from,
+      refreshKey: refreshKey,
+      forceRefresh: forceRefresh,
+    );
+  }
+
+  Future<UserDashboardAlertDetail> getRecentAlertDetail(String id) {
+    return _service.getRecentAlertDetail(id);
+  }
+
+  Future<void> markRecentAlertRead(String id) {
+    return _service.markRecentAlertRead(id);
+  }
+
+  Future<UserDashboardTopAssets> getTopPerformingAssets({
+    required DateTime from,
+    required DateTime to,
+    int limit = 10,
+    bool forceRefresh = false,
+  }) {
+    return _service.getTopPerformingAssets(
+      from: from,
+      to: to,
+      limit: limit,
+      forceRefresh: forceRefresh,
+    );
+  }
+
+  Future<UserDashboardDayNightComparison> getDayNightComparison({
+    String? vehicleId,
+    required DateTime from,
+    required DateTime to,
+  }) {
+    return _service.getDayNightComparison(
+      vehicleId: vehicleId,
+      from: from,
+      to: to,
+    );
+  }
+
+  Future<List<UserDashboardSensorOption>> getVehicleSensors(String vehicleId) {
+    return _service.getVehicleSensors(vehicleId);
+  }
+
+  Future<UserDashboardSensorHistory> getSensorHistory({
+    required String vehicleId,
+    required String sensorId,
+    required DateTime from,
+    required DateTime to,
+    int maxPoints = 500,
+  }) {
+    return _service.getSensorHistory(
+      vehicleId: vehicleId,
+      sensorId: sensorId,
+      from: from,
+      to: to,
+      maxPoints: maxPoints,
+    );
+  }
+
+  Future<List<UserDashboardCustomCommand>> getCustomCommands() {
+    return _service.getCustomCommands();
+  }
+
+  Future<List<UserDashboardSystemVariable>> getSystemVariables() {
+    return _service.getSystemVariables();
+  }
+
+  Future<UserDashboardSendCommandResult> sendBulkCommand({
+    required UserDashboardSendCommandMode mode,
+    String? command,
+    List<String> vehicleIds = const <String>[],
+    List<UserDashboardSendCommandItem> items =
+        const <UserDashboardSendCommandItem>[],
+    String? note,
+  }) {
+    return _service.sendBulkCommand(
+      mode: mode,
+      command: command,
+      vehicleIds: vehicleIds,
+      items: items,
+      note: note,
+    );
   }
 
   Future<void> _loadDashboardDetail(

@@ -64,11 +64,8 @@ class SuperadminHomeScreen extends ConsumerWidget {
     final authState = ref.watch(authControllerProvider);
     final user = authState.user;
     final baseUrl = ref.watch(apiBaseUrlProvider);
-    final unreadCount = ref.watch(
-      superadminNotificationCenterProvider.select(
-        (state) => state.unreadCount,
-      ),
-    );
+    final unreadAsync = ref.watch(superadminNotificationUnreadBadgeProvider);
+    final unreadCount = unreadAsync.maybeWhen(data: (v) => v, orElse: () => 0);
 
     return OpenVtsRoleHome(
       displayName: user?.name.isNotEmpty == true ? user!.name : 'Super Admin',
@@ -77,9 +74,10 @@ class SuperadminHomeScreen extends ConsumerWidget {
       items: _items,
       onToggleTheme: () => ref.read(themeModeProvider.notifier).toggle(),
       notificationBadgeCount: unreadCount,
-      onNotificationsPressed: () => context.push(
-        RoutePaths.superadminNotifications,
-      ),
+      onNotificationsPressed: () {
+        ref.invalidate(superadminNotificationUnreadBadgeProvider);
+        context.push(RoutePaths.superadminNotifications);
+      },
       onProfilePressed: () => context.push(RoutePaths.superadminProfile),
     );
   }

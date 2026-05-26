@@ -32,7 +32,7 @@ class _UserSensorHistoryWidgetState
   String? _selectedVehicleId;
   String? _selectedSensorId;
   late OpenVtsDateTimeRange _range;
-  late Future<_SensorHistoryViewData> _future;
+  int _refreshKey = 0;
 
   @override
   void initState() {
@@ -46,7 +46,6 @@ class _UserSensorHistoryWidgetState
       const ['sensorId', 'sensor_id'],
     );
     _range = _initialRange(widget.config.props);
-    _future = _load();
   }
 
   @override
@@ -58,85 +57,14 @@ class _UserSensorHistoryWidgetState
     }
   }
 
-  Future<_SensorHistoryViewData> _load() async {
-    final service = ref.read(userDashboardServiceProvider);
-    final vehicles = await service.getVehicles();
-    if (vehicles.isEmpty) {
-      return const _SensorHistoryViewData.empty(
-        vehicles: [],
-        sensors: [],
-        message: 'No vehicles available.',
-      );
-    }
-
-    final vehicleId = _resolveVehicleId(vehicles);
-    final sensors = await service.getVehicleSensors(vehicleId);
-    if (sensors.isEmpty) {
-      return _SensorHistoryViewData.empty(
-        vehicles: vehicles,
-        sensors: const [],
-        selectedVehicleId: vehicleId,
-        message:
-            'No sensors available for ${_vehicleName(vehicles, vehicleId)}.',
-      );
-    }
-
-    final sensorId = _resolveSensorId(sensors);
-    final normalizedRange = _range.normalized(dateTimeEnabled: true);
-    final fallbackRange = _todayRange();
-    final from = normalizedRange.start ?? fallbackRange.start!;
-    final to = normalizedRange.end ?? fallbackRange.end!;
-    final start = from.isAfter(to) ? to : from;
-    final end = from.isAfter(to) ? from : to;
-    final history = await service.getSensorHistory(
-      vehicleId: vehicleId,
-      sensorId: sensorId,
-      from: start,
-      to: end,
-      maxPoints: 500,
-    );
-
-    return _SensorHistoryViewData(
-      vehicles: vehicles,
-      sensors: sensors,
-      selectedVehicleId: vehicleId,
-      selectedSensorId: sensorId,
-      history: history,
-    );
-  }
-
-  String _resolveVehicleId(List<UserDashboardVehicleOption> vehicles) {
-    final current = _selectedVehicleId;
-    if (current != null && vehicles.any((vehicle) => vehicle.id == current)) {
-      return current;
-    }
-    final next = vehicles.first.id;
-    _selectedVehicleId = next;
-    return next;
-  }
-
-  String _resolveSensorId(List<UserDashboardSensorOption> sensors) {
-    final current = _selectedSensorId;
-    if (current != null && sensors.any((sensor) => sensor.id == current)) {
-      return current;
-    }
-    final next = sensors.first.id;
-    _selectedSensorId = next;
-    return next;
-  }
-
-  void _reload() {
-    setState(() {
-      _future = _load();
-    });
-  }
+  void _reload() => setState(() => _refreshKey++);
 
   void _changeVehicle(String? value) {
     if (value == null || value == _selectedVehicleId) return;
     setState(() {
       _selectedVehicleId = value;
       _selectedSensorId = null;
-      _future = _load();
+      _refreshKey++;
     });
   }
 
@@ -144,49 +72,67 @@ class _UserSensorHistoryWidgetState
     if (value == null || value == _selectedSensorId) return;
     setState(() {
       _selectedSensorId = value;
-      _future = _load();
+      _refreshKey++;
     });
   }
 
   void _changeRange(OpenVtsDateTimeRange value) {
     setState(() {
       _range = value.normalized(dateTimeEnabled: true);
-      _future = _load();
+      _refreshKey++;
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<_SensorHistoryViewData>(
-      future: _future,
-      builder: (context, snapshot) {
-        final isLoading = snapshot.connectionState != ConnectionState.done;
-        return UserDashboardWidgetCard(
-          title: widget.config.title,
-          icon: Icons.sensors_rounded,
-          isLoading: isLoading,
-          onRefresh: _reload,
-          child: _buildBody(snapshot),
-        );
-      },
+    final range = _resolvedRange();
+    final state = ref.watch(
+      userDashboardSensorHistoryProvider(
+        UserDashboardSensorHistoryArgs(
+          widgetId: widget.config.id,
+          refreshKey: _refreshKey,
+          vehicleId: _selectedVehicleId,
+          sensorId: _selectedSensorId,
+          from: range.start,
+          to: range.end,
+        ),
+      ),
+    );
+    return UserDashboardWidgetCard(
+      title: widget.config.title,
+      icon: Icons.sensors_rounded,
+      isLoading: state.isLoading,
+      onRefresh: _reload,
+      child: _buildBody(state),
     );
   }
 
-  Widget _buildBody(AsyncSnapshot<_SensorHistoryViewData> snapshot) {
-    if (snapshot.hasError) {
+  Widget _buildBody(
+    AsyncValue<
+            ({
+              List<UserDashboardVehicleOption> vehicles,
+              List<UserDashboardSensorOption> sensors,
+              String? selectedVehicleId,
+              String? selectedSensorId,
+              UserDashboardSensorHistory? history,
+              String? emptyMessage,
+            })>
+        state,
+  ) {
+    if (state.hasError) {
       return UserDashboardWidgetError(
-        message: snapshot.error.toString(),
+        message: state.error.toString(),
         onRetry: _reload,
       );
     }
 
-    final data = snapshot.data;
+    final data = state.valueOrNull;
     if (data == null) {
       return const _SensorHistorySkeleton();
     }
 
     final history = data.history;
-    final selectedSensor = data.selectedSensor;
+    final selectedSensor = _selectedSensor(data);
     final unit = selectedSensor?.unit ?? history?.sensor?.unit ?? '';
 
     return Column(
@@ -271,6 +217,33 @@ class _UserSensorHistoryWidgetState
     final now = DateTime.now();
     final start = DateTime(now.year, now.month, now.day);
     return OpenVtsDateTimeRange(start: start, end: now);
+  }
+
+  _ResolvedSensorRange _resolvedRange() {
+    final normalizedRange = _range.normalized(dateTimeEnabled: true);
+    final fallbackRange = _todayRange();
+    final from = normalizedRange.start ?? fallbackRange.start!;
+    final to = normalizedRange.end ?? fallbackRange.end!;
+    return _ResolvedSensorRange(
+      start: from.isAfter(to) ? to : from,
+      end: from.isAfter(to) ? from : to,
+    );
+  }
+
+  static UserDashboardSensorOption? _selectedSensor(
+    ({
+      List<UserDashboardVehicleOption> vehicles,
+      List<UserDashboardSensorOption> sensors,
+      String? selectedVehicleId,
+      String? selectedSensorId,
+      UserDashboardSensorHistory? history,
+      String? emptyMessage,
+    }) data,
+  ) {
+    for (final sensor in data.sensors) {
+      if (sensor.id == data.selectedSensorId) return sensor;
+    }
+    return data.history?.sensor;
   }
 }
 
@@ -697,37 +670,11 @@ class _SensorHistorySkeleton extends StatelessWidget {
   }
 }
 
-class _SensorHistoryViewData {
-  const _SensorHistoryViewData({
-    required this.vehicles,
-    required this.sensors,
-    this.selectedVehicleId,
-    this.selectedSensorId,
-    this.history,
-  }) : emptyMessage = null;
+class _ResolvedSensorRange {
+  const _ResolvedSensorRange({required this.start, required this.end});
 
-  const _SensorHistoryViewData.empty({
-    required this.vehicles,
-    required this.sensors,
-    required String message,
-    this.selectedVehicleId,
-  })  : history = null,
-        selectedSensorId = null,
-        emptyMessage = message;
-
-  final List<UserDashboardVehicleOption> vehicles;
-  final List<UserDashboardSensorOption> sensors;
-  final String? selectedVehicleId;
-  final String? selectedSensorId;
-  final UserDashboardSensorHistory? history;
-  final String? emptyMessage;
-
-  UserDashboardSensorOption? get selectedSensor {
-    for (final sensor in sensors) {
-      if (sensor.id == selectedSensorId) return sensor;
-    }
-    return history?.sensor;
-  }
+  final DateTime start;
+  final DateTime end;
 }
 
 String _formatSensorValue(double? value, String unit) {

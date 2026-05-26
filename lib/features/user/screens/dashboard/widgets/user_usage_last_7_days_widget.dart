@@ -29,7 +29,7 @@ class UserUsageLast7DaysWidget extends ConsumerStatefulWidget {
 class _UserUsageLast7DaysWidgetState
     extends ConsumerState<UserUsageLast7DaysWidget> {
   late String _selectedVehicleId;
-  late Future<_UsageViewData> _future;
+  int _refreshKey = 0;
 
   @override
   void initState() {
@@ -39,7 +39,6 @@ class _UserUsageLast7DaysWidgetState
           const ['vehicleId', 'vehicle_id'],
         ) ??
         'all';
-    _future = _load();
   }
 
   @override
@@ -51,60 +50,53 @@ class _UserUsageLast7DaysWidgetState
     }
   }
 
-  Future<_UsageViewData> _load() async {
-    final service = ref.read(userDashboardServiceProvider);
-    final vehicleId = _selectedVehicleId == 'all' ? null : _selectedVehicleId;
-    final results = await Future.wait<dynamic>([
-      service.getVehicles(),
-      service.getUsageLast7Days(vehicleId: vehicleId),
-    ]);
-    final vehicles = results[0] as List<UserDashboardVehicleOption>;
-    return _UsageViewData(
-      vehicles: vehicles,
-      usage: results[1] as UserDashboardUsageLast7Days,
-    );
-  }
-
-  void _reload() {
-    setState(() {
-      _future = _load();
-    });
-  }
+  void _reload() => setState(() => _refreshKey++);
 
   void _changeVehicle(String? value) {
     if (value == null || value == _selectedVehicleId) return;
     setState(() {
       _selectedVehicleId = value;
-      _future = _load();
+      _refreshKey++;
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<_UsageViewData>(
-      future: _future,
-      builder: (context, snapshot) {
-        final isLoading = snapshot.connectionState != ConnectionState.done;
-        return UserDashboardWidgetCard(
-          title: widget.config.title,
-          icon: Icons.bar_chart_rounded,
-          isLoading: isLoading,
-          onRefresh: _reload,
-          child: _buildBody(snapshot),
-        );
-      },
+    final state = ref.watch(
+      userDashboardUsageProvider(
+        UserDashboardVehicleScopedArgs(
+          widgetId: widget.config.id,
+          refreshKey: _refreshKey,
+          vehicleId:
+              _selectedVehicleId == 'all' ? null : _selectedVehicleId,
+        ),
+      ),
+    );
+    return UserDashboardWidgetCard(
+      title: widget.config.title,
+      icon: Icons.bar_chart_rounded,
+      isLoading: state.isLoading,
+      onRefresh: _reload,
+      child: _buildBody(state),
     );
   }
 
-  Widget _buildBody(AsyncSnapshot<_UsageViewData> snapshot) {
-    if (snapshot.hasError) {
+  Widget _buildBody(
+    AsyncValue<
+            ({
+              List<UserDashboardVehicleOption> vehicles,
+              UserDashboardUsageLast7Days usage,
+            })>
+        state,
+  ) {
+    if (state.hasError) {
       return UserDashboardWidgetError(
-        message: snapshot.error.toString(),
+        message: state.error.toString(),
         onRetry: _reload,
       );
     }
 
-    final data = snapshot.data;
+    final data = state.valueOrNull;
     if (data == null) {
       return const _UsageSkeleton();
     }
@@ -429,11 +421,4 @@ class _SkeletonBlock extends StatelessWidget {
       ),
     );
   }
-}
-
-class _UsageViewData {
-  const _UsageViewData({required this.vehicles, required this.usage});
-
-  final List<UserDashboardVehicleOption> vehicles;
-  final UserDashboardUsageLast7Days usage;
 }

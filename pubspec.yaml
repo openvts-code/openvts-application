@@ -39,7 +39,6 @@ dependencies:
   # UI/media
   flutter_svg: ^2.0.17
   cached_network_image: ^3.4.1
-  google_fonts: ^6.2.1
 
   # Map and realtime placeholders
   flutter_map: ^7.0.2
@@ -73,9 +72,9 @@ flutter:
     - assets/images/
     - assets/images/vehicleicons/
   # Font implementation policy:
-  # - Development uses the google_fonts package for Inter so the app has a real Inter text theme immediately.
-  # - For production/offline builds, add licensed font files under assets/fonts/inter/ and assets/fonts/satoshi/,
-  #   then uncomment and use the font registration block below.
+  # - Runtime network font fetching is disabled for production startup performance.
+  # - Add licensed font files under assets/fonts/inter/ and assets/fonts/satoshi/,
+  #   then uncomment and use the font registration block below when assets are available.
   # - Do not commit or distribute font files unless the license allows it.
   #
   # fonts:

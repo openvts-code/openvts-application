@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/providers/core_providers.dart';
@@ -258,4 +260,18 @@ final adminNotificationCenterProvider = StateNotifierProvider.autoDispose<
   );
   controller.load();
   return controller;
+});
+
+final adminNotificationUnreadBadgeProvider =
+    FutureProvider.autoDispose<int>((ref) async {
+  final cacheLink = ref.keepAlive();
+  final cacheTimer = Timer(const Duration(seconds: 30), cacheLink.close);
+  ref.onDispose(cacheTimer.cancel);
+
+  try {
+    final service = ref.watch(adminNotificationServiceProvider);
+    return await service.getUnreadBadgeCountLightweight();
+  } catch (_) {
+    return 0;
+  }
 });

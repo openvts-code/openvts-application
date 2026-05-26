@@ -322,9 +322,9 @@ class _UserDriverEditSheetState extends ConsumerState<UserDriverEditSheet> {
 
   Future<void> _loadReferenceData() async {
     try {
-      final service = ref.read(userDriversServiceProvider);
-      final countriesFuture = service.fetchCountries();
-      final prefixesFuture = service.fetchMobilePrefixes();
+      final controller = ref.read(userDriversControllerProvider.notifier);
+      final countriesFuture = controller.getCountries();
+      final prefixesFuture = controller.getMobilePrefixes();
 
       final countries = await countriesFuture;
       final prefixes = await prefixesFuture;
@@ -396,8 +396,8 @@ class _UserDriverEditSheetState extends ConsumerState<UserDriverEditSheet> {
     setState(() => _isLoadingStates = true);
     try {
       final states = await ref
-          .read(userDriversServiceProvider)
-          .fetchStates(requestedCountry);
+          .read(userDriversControllerProvider.notifier)
+          .getStates(requestedCountry);
 
       if (!mounted || _countryCode != requestedCountry) {
         return;
@@ -427,8 +427,8 @@ class _UserDriverEditSheetState extends ConsumerState<UserDriverEditSheet> {
     setState(() => _isLoadingCities = true);
     try {
       final cities = await ref
-          .read(userDriversServiceProvider)
-          .fetchCities(requestedCountry, requestedState);
+          .read(userDriversControllerProvider.notifier)
+          .getCities(requestedCountry, requestedState);
 
       if (!mounted ||
           _countryCode != requestedCountry ||

@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 
 import '../../../core/api/api_client.dart';
 import '../../../core/api/api_endpoints.dart';
+import '../../../core/api/api_options.dart';
 import '../models/superadmin_payments_model.dart';
 
 class SuperadminPaymentsService {
@@ -25,14 +26,9 @@ class SuperadminPaymentsService {
     'OTHER',
   };
 
-  static final Options _readOptions = Options(
-    receiveTimeout: const Duration(seconds: 60),
-  );
+  static final Options _readOptions = normalReadOptions();
 
-  static final Options _mutationOptions = Options(
-    sendTimeout: const Duration(seconds: 60),
-    receiveTimeout: const Duration(seconds: 60),
-  );
+  static final Options _mutationOptions = normalWriteOptions();
 
   final ApiClient _apiClient;
 

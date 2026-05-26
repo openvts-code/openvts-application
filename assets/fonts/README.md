@@ -7,8 +7,8 @@ OpenVTS uses:
 
 ## Current boilerplate behavior
 
-The boilerplate uses the `google_fonts` package to apply Inter immediately during development.
-This keeps the starter project runnable without shipping font files.
+The app requests the Inter and Satoshi font families by name and falls back to
+platform fonts unless licensed font files are bundled locally.
 
 ## Production/offline build policy
 
@@ -29,6 +29,6 @@ assets/fonts/satoshi/
   Satoshi-Bold.ttf
 ```
 
-Then uncomment the `fonts:` block in `pubspec.yaml`.
+Then uncomment and use the `fonts:` block in `pubspec.yaml`.
 
 Do not commit or distribute font files unless your license permits it.

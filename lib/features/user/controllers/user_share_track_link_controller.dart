@@ -177,6 +177,17 @@ class UserShareTrackLinkController
     }
   }
 
+  Future<List<UserShareTrackVehicle>> getVehicles() async {
+    try {
+      return await _service.getVehicles();
+    } catch (error) {
+      if (mounted) {
+        state = state.copyWith(errorMessage: _toErrorMessage(error));
+      }
+      rethrow;
+    }
+  }
+
   Future<void> _loadFirstPage({
     required String? refreshKey,
     bool forceRefresh = false,

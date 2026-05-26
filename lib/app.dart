@@ -84,13 +84,11 @@ class _MobilePushLifecycleScopeState
         controller.updateAuthenticationState(
           isAuthenticated: authState.isAuthenticated,
         );
+        // Hydrate cached push state only. Do not trigger remote config
+        // fetches or token registration at cold startup — those are gated
+        // and performed only after auth/session restore when allowed.
         unawaited(controller.initializeAfterAppStart());
         if (authState.isAuthenticated) {
-          // Do NOT request OS permission at startup; only register if a token
-          // already exists (permission granted previously). The user-visible
-          // permission prompt is reserved for the Notification Settings screen
-          // and the Test Mobile Push flow.
-          unawaited(controller.registerTokenForCurrentSession());
           unawaited(
             _mobilePushNavigation.consumePendingNotificationTapIfPossible(),
           );
@@ -117,9 +115,11 @@ class _MobilePushLifecycleScopeState
       );
 
       if (_shouldRegisterForAuthChange(previous, next)) {
-        // Fire-and-forget token registration. Permission is requested only
-        // from the Notification Settings screen / Test Mobile Push button.
-        unawaited(controller.registerTokenForCurrentSession());
+        // Attempt background registration only when controller gating allows
+        // it (cached permission, cached config, cooldown cleared, etc.).
+        if (controller.shouldAttemptBackgroundRegistration) {
+          unawaited(controller.registerTokenForCurrentSession());
+        }
       }
       if (next.isAuthenticated) {
         unawaited(
@@ -138,9 +138,11 @@ class _MobilePushLifecycleScopeState
       isAuthenticated: authState.isAuthenticated,
     );
 
-    await controller.refreshPermissionStatus();
-    if (authState.isAuthenticated) {
-      await controller.registerTokenForCurrentSession();
+    // Resume path must not await network work and should only attempt
+    // fire-and-forget registration when cached gating allows it.
+    if (authState.isAuthenticated &&
+        controller.shouldAttemptBackgroundRegistration) {
+      unawaited(controller.registerTokenForCurrentSession());
     }
   }
 

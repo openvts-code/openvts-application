@@ -32,7 +32,7 @@ class _UserDayNightComparisonWidgetState
   late String _selectedVehicleId;
   late OpenVtsDateTimeRange _range;
   _DayNightMetric _metric = _DayNightMetric.drivenKm;
-  late Future<_DayNightViewData> _future;
+  int _refreshKey = 0;
 
   @override
   void initState() {
@@ -43,7 +43,6 @@ class _UserDayNightComparisonWidgetState
         ) ??
         'all';
     _range = _initialRange(widget.config.props);
-    _future = _load();
   }
 
   @override
@@ -55,30 +54,13 @@ class _UserDayNightComparisonWidgetState
     }
   }
 
-  Future<_DayNightViewData> _load() async {
-    final service = ref.read(userDashboardServiceProvider);
-    final vehicles = await service.getVehicles();
-    final selectedVehicleId = _validatedVehicleId(vehicles);
-    final resolvedRange = _resolvedRange();
-    final comparison = await service.getDayNightComparison(
-      vehicleId: selectedVehicleId == 'all' ? null : selectedVehicleId,
-      from: resolvedRange.start,
-      to: resolvedRange.end,
-    );
-    return _DayNightViewData(vehicles: vehicles, comparison: comparison);
-  }
-
-  void _reload() {
-    setState(() {
-      _future = _load();
-    });
-  }
+  void _reload() => setState(() => _refreshKey++);
 
   void _changeVehicle(String? value) {
     if (value == null || value == _selectedVehicleId) return;
     setState(() {
       _selectedVehicleId = value;
-      _future = _load();
+      _refreshKey++;
     });
   }
 
@@ -90,7 +72,7 @@ class _UserDayNightComparisonWidgetState
   void _changeRange(OpenVtsDateTimeRange value) {
     setState(() {
       _range = value.normalized(dateTimeEnabled: false);
-      _future = _load();
+      _refreshKey++;
     });
   }
 
@@ -119,30 +101,43 @@ class _UserDayNightComparisonWidgetState
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<_DayNightViewData>(
-      future: _future,
-      builder: (context, snapshot) {
-        final isLoading = snapshot.connectionState != ConnectionState.done;
-        return UserDashboardWidgetCard(
-          title: widget.config.title,
-          icon: Icons.dark_mode_outlined,
-          isLoading: isLoading,
-          onRefresh: _reload,
-          child: _buildBody(snapshot),
-        );
-      },
+    final range = _resolvedRange();
+    final state = ref.watch(
+      userDashboardDayNightProvider(
+        UserDashboardRangeArgs(
+          widgetId: widget.config.id,
+          refreshKey: _refreshKey,
+          vehicleId: _selectedVehicleId,
+          from: range.start,
+          to: range.end,
+        ),
+      ),
+    );
+    return UserDashboardWidgetCard(
+      title: widget.config.title,
+      icon: Icons.dark_mode_outlined,
+      isLoading: state.isLoading,
+      onRefresh: _reload,
+      child: _buildBody(state),
     );
   }
 
-  Widget _buildBody(AsyncSnapshot<_DayNightViewData> snapshot) {
-    if (snapshot.hasError) {
+  Widget _buildBody(
+    AsyncValue<
+            ({
+              List<UserDashboardVehicleOption> vehicles,
+              UserDashboardDayNightComparison comparison,
+            })>
+        state,
+  ) {
+    if (state.hasError) {
       return UserDashboardWidgetError(
-        message: snapshot.error.toString(),
+        message: state.error.toString(),
         onRetry: _reload,
       );
     }
 
-    final data = snapshot.data;
+    final data = state.valueOrNull;
     if (data == null) {
       return const _DayNightSkeleton();
     }
@@ -494,13 +489,6 @@ class _DayNightSkeleton extends StatelessWidget {
   Widget build(BuildContext context) {
     return const SizedBox(height: 220);
   }
-}
-
-class _DayNightViewData {
-  const _DayNightViewData({required this.vehicles, required this.comparison});
-
-  final List<UserDashboardVehicleOption> vehicles;
-  final UserDashboardDayNightComparison comparison;
 }
 
 class _ResolvedDateRange {
