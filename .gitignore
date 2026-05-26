@@ -1,0 +1,34 @@
+.DS_Store
+*.iml
+*.log
+*.pyc
+*.swp
+*.zip
+
+.env
+.env.*
+!.env.example
+
+.idea/
+.vscode/
+
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.metadata
+.packages
+.pub/
+.pub-cache/
+.fvm/
+.melos_tool/
+build/
+coverage/
+doc/api/
+
+app.*.map.json
+app.*.symbols
+
+# Firebase runtime config is fetched from the backend. Do not require or commit
+# generated Firebase config files as the source of truth.
+android/app/google-services.json
+ios/Runner/GoogleService-Info.plist

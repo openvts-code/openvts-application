@@ -1,0 +1,57 @@
+name: Flutter APK Build
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    env:
+      API_BASE_URL: https://app.openvts.io/api
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install Flutter SDK
+        run: |
+          git clone https://github.com/flutter/flutter.git -b stable
+          echo "${{ github.workspace }}/flutter/bin" >> $GITHUB_PATH
+
+      - name: Create .env for asset bundling
+        run: |
+          cat > .env <<EOF
+          API_BASE_URL=${{ env.API_BASE_URL }}
+          USE_MOCK_DATA=false
+          EOF
+
+      - name: Cache Pub Dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+            flutter/bin/cache
+          key: ${{ runner.os }}-flutter-${{ hashFiles('pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-flutter-
+
+      - name: Install Dependencies
+        run: flutter pub get
+
+      - name: Build Flutter APK (release)
+        run: flutter build apk --release --dart-define=API_BASE_URL=${{ env.API_BASE_URL }} --no-tree-shake-icons
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-apk
+          path: build/app/outputs/flutter-apk/app-release.apk

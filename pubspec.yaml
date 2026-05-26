@@ -1,0 +1,99 @@
+name: open_vts
+description: Simple role-based Flutter boilerplate for OpenVTS mobile application.
+publish_to: 'none'
+
+version: 0.1.0+1
+
+environment:
+  sdk: '>=3.4.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  flutter_localizations:
+    sdk: flutter
+
+  # State management
+  flutter_riverpod: ^2.6.1
+
+  # Routing
+  go_router: ^14.7.1
+
+  # API
+  dio: ^5.9.0
+  http_parser: ^4.1.2
+  pretty_dio_logger: ^1.4.0
+
+  # Environment
+  flutter_dotenv: ^5.2.1
+
+  # Storage
+  flutter_secure_storage: ^9.2.4
+  shared_preferences: ^2.3.5
+
+  # Models and utilities
+  intl: ^0.20.2
+  equatable: ^2.0.7
+
+  # UI/media
+  flutter_svg: ^2.0.17
+  cached_network_image: ^3.4.1
+  google_fonts: ^6.2.1
+
+  # Map and realtime placeholders
+  flutter_map: ^7.0.2
+  latlong2: ^0.9.1
+  socket_io_client: ^3.0.2
+
+  # Platform utilities
+  connectivity_plus: ^6.1.2
+  url_launcher: ^6.3.1
+  image_picker: ^1.2.2
+  file_picker: ^8.1.7
+  table_calendar: ^3.2.0
+  firebase_core: ^4.9.0
+  firebase_messaging: ^16.2.2
+  flutter_local_notifications: ^20.0.0
+  device_info_plus: ^12.4.0
+  package_info_plus: ^9.0.1
+  uuid: ^4.5.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - .env
+    - assets/brand/
+    - assets/fonts/
+    - assets/images/
+    - assets/images/vehicleicons/
+  # Font implementation policy:
+  # - Development uses the google_fonts package for Inter so the app has a real Inter text theme immediately.
+  # - For production/offline builds, add licensed font files under assets/fonts/inter/ and assets/fonts/satoshi/,
+  #   then uncomment and use the font registration block below.
+  # - Do not commit or distribute font files unless the license allows it.
+  #
+  # fonts:
+  #   - family: Inter
+  #     fonts:
+  #       - asset: assets/fonts/inter/Inter-Regular.ttf
+  #         weight: 400
+  #       - asset: assets/fonts/inter/Inter-Medium.ttf
+  #         weight: 500
+  #       - asset: assets/fonts/inter/Inter-SemiBold.ttf
+  #         weight: 600
+  #       - asset: assets/fonts/inter/Inter-Bold.ttf
+  #         weight: 700
+  #   - family: Satoshi
+  #     fonts:
+  #       - asset: assets/fonts/satoshi/Satoshi-Regular.ttf
+  #         weight: 400
+  #       - asset: assets/fonts/satoshi/Satoshi-Medium.ttf
+  #         weight: 500
+  #       - asset: assets/fonts/satoshi/Satoshi-Bold.ttf
+  #         weight: 700
