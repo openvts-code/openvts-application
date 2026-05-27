@@ -32,22 +32,20 @@ class SuperadminPaymentsFiltersCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final admins = _resolveAdminOptions();
-    final selectedAdmin = state.selectedAdminId;
-    final selectedAdminValue =
-        admins.any((item) => item.uid == selectedAdmin) ? selectedAdmin : null;
-
     return OpenVtsCard(
       padding: const EdgeInsets.all(OpenVtsSpacing.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Row(
             children: [
-              Expanded(
+              const Expanded(
                 child: Text(
                   'Filters',
-                  style: OpenVtsTypography.titleSmall.copyWith(
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
                     color: OpenVtsColors.textPrimary,
                   ),
                 ),
@@ -55,17 +53,109 @@ class SuperadminPaymentsFiltersCard extends StatelessWidget {
               if (state.hasActiveFilters)
                 TextButton(
                   onPressed: onClearFilters,
-                  child: const Text('Clear filters'),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: OpenVtsSpacing.sm,
+                      vertical: OpenVtsSpacing.xs,
+                    ),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: const Text(
+                    'Clear',
+                    style: TextStyle(fontSize: 12),
+                  ),
                 ),
             ],
           ),
+          const SizedBox(height: OpenVtsSpacing.sm),
+          OpenVtsSearchField(
+            hintText: 'Search by reference or admin...',
+            onChanged: onSearchChanged,
+          ),
+          const SizedBox(height: OpenVtsSpacing.sm),
+          _CollapsibleFiltersSection(
+            state: state,
+            onAdminChanged: onAdminChanged,
+            onRangePresetChanged: onRangePresetChanged,
+            onCustomRangeChanged: onCustomRangeChanged,
+            onStatusChanged: onStatusChanged,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CollapsibleFiltersSection extends StatefulWidget {
+  const _CollapsibleFiltersSection({
+    required this.state,
+    required this.onAdminChanged,
+    required this.onRangePresetChanged,
+    required this.onCustomRangeChanged,
+    required this.onStatusChanged,
+  });
+
+  final SuperadminPaymentsState state;
+  final ValueChanged<String?> onAdminChanged;
+  final ValueChanged<SuperadminPaymentsRangePreset> onRangePresetChanged;
+  final void Function(DateTime? from, DateTime? to) onCustomRangeChanged;
+  final ValueChanged<SuperadminTransactionStatus?> onStatusChanged;
+
+  @override
+  State<_CollapsibleFiltersSection> createState() =>
+      _CollapsibleFiltersSectionState();
+}
+
+class _CollapsibleFiltersSectionState
+    extends State<_CollapsibleFiltersSection> {
+  bool _isExpanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final admins = _resolveAdminOptions();
+    final selectedAdmin = widget.state.selectedAdminId;
+    final selectedAdminValue =
+        admins.any((item) => item.uid == selectedAdmin) ? selectedAdmin : null;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        InkWell(
+          onTap: () => setState(() => _isExpanded = !_isExpanded),
+          borderRadius: BorderRadius.circular(OpenVtsRadius.md),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: OpenVtsSpacing.xs),
+            child: Row(
+              children: [
+                Text(
+                  'Advanced Filters',
+                  style: OpenVtsTypography.label.copyWith(
+                    color: OpenVtsColors.textSecondary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(width: OpenVtsSpacing.xs),
+                Icon(
+                  _isExpanded
+                      ? Icons.expand_less_rounded
+                      : Icons.expand_more_rounded,
+                  size: 18,
+                  color: OpenVtsColors.textSecondary,
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (_isExpanded) ...[
           const SizedBox(height: OpenVtsSpacing.sm),
           DropdownButtonFormField<int?>(
             initialValue: selectedAdminValue,
             isExpanded: true,
             decoration: InputDecoration(
               labelText: 'Administrator',
-              suffixIcon: state.isLoadingAdmins
+              suffixIcon: widget.state.isLoadingAdmins
                   ? const Padding(
                       padding: EdgeInsets.all(12),
                       child: SizedBox(
@@ -88,7 +178,7 @@ class SuperadminPaymentsFiltersCard extends StatelessWidget {
                 ),
               ),
             ],
-            onChanged: (value) => onAdminChanged(value?.toString()),
+            onChanged: (value) => widget.onAdminChanged(value?.toString()),
           ),
           const SizedBox(height: OpenVtsSpacing.sm),
           Text(
@@ -104,60 +194,56 @@ class SuperadminPaymentsFiltersCard extends StatelessWidget {
             children: [
               _FilterChoiceChip(
                 label: 'This Month',
-                selected: state.rangePreset ==
+                selected: widget.state.rangePreset ==
                     SuperadminPaymentsRangePreset.thisMonth,
-                onTap: () => onRangePresetChanged(
+                onTap: () => widget.onRangePresetChanged(
                   SuperadminPaymentsRangePreset.thisMonth,
                 ),
               ),
               _FilterChoiceChip(
                 label: 'Last 30 Days',
-                selected:
-                    state.rangePreset == SuperadminPaymentsRangePreset.last30,
-                onTap: () => onRangePresetChanged(
+                selected: widget.state.rangePreset ==
+                    SuperadminPaymentsRangePreset.last30,
+                onTap: () => widget.onRangePresetChanged(
                   SuperadminPaymentsRangePreset.last30,
                 ),
               ),
               _FilterChoiceChip(
                 label: 'This Year',
-                selected:
-                    state.rangePreset == SuperadminPaymentsRangePreset.thisYear,
-                onTap: () => onRangePresetChanged(
+                selected: widget.state.rangePreset ==
+                    SuperadminPaymentsRangePreset.thisYear,
+                onTap: () => widget.onRangePresetChanged(
                   SuperadminPaymentsRangePreset.thisYear,
                 ),
               ),
               _FilterChoiceChip(
                 label: 'Custom',
-                selected:
-                    state.rangePreset == SuperadminPaymentsRangePreset.custom,
-                onTap: () => onRangePresetChanged(
+                selected: widget.state.rangePreset ==
+                    SuperadminPaymentsRangePreset.custom,
+                onTap: () => widget.onRangePresetChanged(
                   SuperadminPaymentsRangePreset.custom,
                 ),
               ),
             ],
           ),
-          if (state.rangePreset == SuperadminPaymentsRangePreset.custom) ...[
+          if (widget.state.rangePreset ==
+              SuperadminPaymentsRangePreset.custom) ...[
             const SizedBox(height: OpenVtsSpacing.sm),
             OpenVtsDateTimeRangeField(
               label: 'Custom Range',
               title: 'Choose Date Range',
               value: OpenVtsDateTimeRange(
-                start: state.customFrom,
-                end: state.customTo,
+                start: widget.state.customFrom,
+                end: widget.state.customTo,
               ),
               firstDate: DateTime(2020),
               lastDate: DateTime.now(),
-              onChanged: (range) => onCustomRangeChanged(
+              onChanged: (range) => widget.onCustomRangeChanged(
                 range.start == null ? null : DateUtils.dateOnly(range.start!),
                 range.end == null ? null : DateUtils.dateOnly(range.end!),
               ),
             ),
           ],
-          const SizedBox(height: OpenVtsSpacing.sm),
-          OpenVtsSearchField(
-            hintText: 'Search reference, provider, admin...',
-            onChanged: onSearchChanged,
-          ),
           const SizedBox(height: OpenVtsSpacing.sm),
           Text(
             'Status',
@@ -172,46 +258,47 @@ class SuperadminPaymentsFiltersCard extends StatelessWidget {
             children: [
               _FilterChoiceChip(
                 label: 'All',
-                selected: state.selectedStatus == null,
-                onTap: () => onStatusChanged(null),
+                selected: widget.state.selectedStatus == null,
+                onTap: () => widget.onStatusChanged(null),
               ),
               _FilterChoiceChip(
                 label: SuperadminTransactionStatus.success.label,
-                selected:
-                    state.selectedStatus == SuperadminTransactionStatus.success,
+                selected: widget.state.selectedStatus ==
+                    SuperadminTransactionStatus.success,
                 onTap: () =>
-                    onStatusChanged(SuperadminTransactionStatus.success),
+                    widget.onStatusChanged(SuperadminTransactionStatus.success),
               ),
               _FilterChoiceChip(
                 label: SuperadminTransactionStatus.pending.label,
-                selected:
-                    state.selectedStatus == SuperadminTransactionStatus.pending,
+                selected: widget.state.selectedStatus ==
+                    SuperadminTransactionStatus.pending,
                 onTap: () =>
-                    onStatusChanged(SuperadminTransactionStatus.pending),
+                    widget.onStatusChanged(SuperadminTransactionStatus.pending),
               ),
               _FilterChoiceChip(
                 label: SuperadminTransactionStatus.failed.label,
-                selected:
-                    state.selectedStatus == SuperadminTransactionStatus.failed,
+                selected: widget.state.selectedStatus ==
+                    SuperadminTransactionStatus.failed,
                 onTap: () =>
-                    onStatusChanged(SuperadminTransactionStatus.failed),
+                    widget.onStatusChanged(SuperadminTransactionStatus.failed),
               ),
             ],
           ),
         ],
-      ),
+      ],
     );
   }
 
   List<SuperadminPaymentAdminOption> _resolveAdminOptions() {
-    if (state.selectedAdminId == null) {
-      return state.admins;
+    if (widget.state.selectedAdminId == null) {
+      return widget.state.admins;
     }
 
-    final selectedId = state.selectedAdminId!;
-    final hasSelected = state.admins.any((item) => item.uid == selectedId);
+    final selectedId = widget.state.selectedAdminId!;
+    final hasSelected =
+        widget.state.admins.any((item) => item.uid == selectedId);
     if (hasSelected) {
-      return state.admins;
+      return widget.state.admins;
     }
 
     return [
@@ -222,7 +309,7 @@ class SuperadminPaymentsFiltersCard extends StatelessWidget {
         email: '',
         currency: '',
       ),
-      ...state.admins,
+      ...widget.state.admins,
     ];
   }
 }

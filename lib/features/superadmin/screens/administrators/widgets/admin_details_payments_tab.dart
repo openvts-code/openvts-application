@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -32,32 +34,34 @@ class _AdminDetailsPaymentsTabState
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final provider =
-          superadminAdminDetailsControllerProvider(widget.adminId);
+      final provider = superadminAdminDetailsControllerProvider(widget.adminId);
       final state = ref.read(provider);
       if (state.transactions.isEmpty &&
           state.transactionAnalytics == null &&
           !state.isLoadingPayments) {
-        ref.read(provider.notifier).loadPayments();
+        unawaited(ref.read(provider.notifier).loadPayments());
       }
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    final provider =
-        superadminAdminDetailsControllerProvider(widget.adminId);
+    final provider = superadminAdminDetailsControllerProvider(widget.adminId);
     final state = ref.watch(provider);
     final controller = ref.read(provider.notifier);
 
-    if (state.isLoadingPayments && state.transactions.isEmpty) {
-      return const OpenVtsCard(
-        padding: EdgeInsets.symmetric(vertical: OpenVtsSpacing.lg),
+    if (state.isLoadingPayments &&
+        state.transactions.isEmpty &&
+        state.transactionAnalytics == null) {
+      return const SizedBox(
+        height: 200,
         child: Center(child: OpenVtsLoader()),
       );
     }
 
-    if (state.sectionErrorMessage != null && state.transactions.isEmpty) {
+    if (state.sectionErrorMessage != null &&
+        state.transactions.isEmpty &&
+        state.transactionAnalytics == null) {
       return OpenVtsCard(
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: OpenVtsSpacing.md),
@@ -69,36 +73,43 @@ class _AdminDetailsPaymentsTabState
       );
     }
 
-    final analytics = state.transactionAnalytics;
-    final transactions = state.transactions;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (analytics != null) ...[
-          _AnalyticsSummary(analytics: analytics),
-          const SizedBox(height: OpenVtsSpacing.sm),
-          _RevenueCard(analytics: analytics),
-          const SizedBox(height: OpenVtsSpacing.sm),
-        ],
-        OpenVtsButton(
-          label: 'Record payment',
-          onPressed: state.isRecordingPayment
-              ? null
-              : () => _openRecordSheet(context),
+        _PaymentsHeader(
+          adminId: widget.adminId,
+          isRecording: state.isRecordingPayment,
+          onRecordPressed: () => _openRecordSheet(context),
         ),
         const SizedBox(height: OpenVtsSpacing.sm),
-        if (transactions.isEmpty)
+        if (state.transactionAnalytics != null) ...[
+          _KpiStrip(analytics: state.transactionAnalytics!),
+          const SizedBox(height: OpenVtsSpacing.sm),
+          _RevenueCard(analytics: state.transactionAnalytics!),
+          const SizedBox(height: OpenVtsSpacing.sm),
+        ],
+        if (state.isLoadingPayments && state.transactions.isNotEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: OpenVtsSpacing.xs),
+            child: Center(
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+          ),
+        if (state.transactions.isEmpty)
           const _EmptyState(message: 'No transactions yet.')
         else
           ListView.separated(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            itemCount: transactions.length,
+            itemCount: state.transactions.length,
             separatorBuilder: (_, __) =>
-                const SizedBox(height: OpenVtsSpacing.xs),
+                const SizedBox(height: OpenVtsSpacing.sm),
             itemBuilder: (context, index) {
-              final tx = transactions[index];
+              final tx = state.transactions[index];
               return SuperadminTransactionCard(
                 transaction: tx,
                 onTap: () => _openTransactionDetails(context, tx),
@@ -108,7 +119,7 @@ class _AdminDetailsPaymentsTabState
         if (state.paymentsHasMore) ...[
           const SizedBox(height: OpenVtsSpacing.sm),
           OpenVtsButton(
-            label: 'Load more',
+            label: 'Load More',
             variant: OpenVtsButtonVariant.secondary,
             isLoading: state.isLoadingMorePayments,
             onPressed: state.isLoadingMorePayments
@@ -127,6 +138,7 @@ class _AdminDetailsPaymentsTabState
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (_) => TransactionDetailsSheet(transaction: transaction),
     );
@@ -144,10 +156,8 @@ class _AdminDetailsPaymentsTabState
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: OpenVtsColors.surfaceElevated,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
       builder: (sheetContext) {
         return _RecordPaymentSheet(
           adminId: widget.adminId,
@@ -159,11 +169,68 @@ class _AdminDetailsPaymentsTabState
 }
 
 // ---------------------------------------------------------------------------
-// Analytics summary
+// Header
 // ---------------------------------------------------------------------------
 
-class _AnalyticsSummary extends StatelessWidget {
-  const _AnalyticsSummary({required this.analytics});
+class _PaymentsHeader extends StatelessWidget {
+  const _PaymentsHeader({
+    required this.adminId,
+    required this.isRecording,
+    required this.onRecordPressed,
+  });
+
+  final String adminId;
+  final bool isRecording;
+  final VoidCallback onRecordPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return OpenVtsCard(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Payments',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: OpenVtsColors.textPrimary,
+                  ),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  'Transaction history',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: OpenVtsColors.textTertiary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: OpenVtsSpacing.xs),
+          OpenVtsButton(
+            label: 'Record Payment',
+            trailingIcon: Icons.add_rounded,
+            onPressed: isRecording ? null : onRecordPressed,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// KPI Strip
+// ---------------------------------------------------------------------------
+
+class _KpiStrip extends StatelessWidget {
+  const _KpiStrip({required this.analytics});
 
   final SuperadminTransactionsAnalytics analytics;
 
@@ -173,38 +240,34 @@ class _AnalyticsSummary extends StatelessWidget {
     final success = breakdown[SuperadminTransactionStatus.success] ?? 0;
     final pending = breakdown[SuperadminTransactionStatus.pending] ?? 0;
     final failed = breakdown[SuperadminTransactionStatus.failed] ?? 0;
+    final compact = NumberFormat.compact(locale: 'en_US');
 
     return Row(
       children: [
         Expanded(
-          child: _SummaryTile(
-            label: 'Total',
-            value: analytics.totalTransactions.toString(),
-            icon: Icons.receipt_long_outlined,
+          child: _CompactKpiCard(
+            icon: Icons.check_circle_rounded,
+            iconColor: OpenVtsColors.success,
+            label: 'Successful',
+            value: compact.format(success),
           ),
         ),
-        const SizedBox(width: OpenVtsSpacing.xs),
+        const SizedBox(width: OpenVtsSpacing.sm),
         Expanded(
-          child: _SummaryTile(
-            label: 'Success',
-            value: success.toString(),
-            icon: Icons.check_circle_outline,
-          ),
-        ),
-        const SizedBox(width: OpenVtsSpacing.xs),
-        Expanded(
-          child: _SummaryTile(
+          child: _CompactKpiCard(
+            icon: Icons.pending_rounded,
+            iconColor: OpenVtsColors.warning,
             label: 'Pending',
-            value: pending.toString(),
-            icon: Icons.schedule_outlined,
+            value: compact.format(pending),
           ),
         ),
-        const SizedBox(width: OpenVtsSpacing.xs),
+        const SizedBox(width: OpenVtsSpacing.sm),
         Expanded(
-          child: _SummaryTile(
+          child: _CompactKpiCard(
+            icon: Icons.cancel_rounded,
+            iconColor: OpenVtsColors.error,
             label: 'Failed',
-            value: failed.toString(),
-            icon: Icons.error_outline,
+            value: compact.format(failed),
           ),
         ),
       ],
@@ -212,33 +275,36 @@ class _AnalyticsSummary extends StatelessWidget {
   }
 }
 
-class _SummaryTile extends StatelessWidget {
-  const _SummaryTile({
+class _CompactKpiCard extends StatelessWidget {
+  const _CompactKpiCard({
+    required this.icon,
+    required this.iconColor,
     required this.label,
     required this.value,
-    required this.icon,
   });
 
+  final IconData icon;
+  final Color iconColor;
   final String label;
   final String value;
-  final IconData icon;
 
   @override
   Widget build(BuildContext context) {
     return OpenVtsCard(
-      padding: const EdgeInsets.symmetric(
-        horizontal: OpenVtsSpacing.xs,
-        vertical: OpenVtsSpacing.sm,
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: OpenVtsColors.textSecondary),
-          const SizedBox(height: 6),
+          Icon(
+            icon,
+            size: 18,
+            color: iconColor,
+          ),
+          const SizedBox(height: OpenVtsSpacing.xs),
           Text(
             value,
             style: const TextStyle(
-              fontSize: 15,
+              fontSize: 20,
               fontWeight: FontWeight.w700,
               color: OpenVtsColors.textPrimary,
             ),
@@ -247,11 +313,9 @@ class _SummaryTile extends StatelessWidget {
           Text(
             label,
             style: const TextStyle(
-              fontSize: 10,
-              color: OpenVtsColors.textSecondary,
+              fontSize: 11,
+              color: OpenVtsColors.textTertiary,
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
@@ -267,27 +331,37 @@ class _RevenueCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final totals = analytics.totalsByCurrency;
+    final currencyFormat = NumberFormat('#,##0.##', 'en_US');
+
     if (totals.isEmpty) {
-      return const OpenVtsCard(
-        padding: EdgeInsets.symmetric(
-          horizontal: OpenVtsSpacing.sm,
-          vertical: OpenVtsSpacing.sm,
-        ),
-        child: Row(
+      return OpenVtsCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Expanded(
-              child: Text(
-                'Revenue',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: OpenVtsColors.textSecondary,
+            Row(
+              children: [
+                Icon(
+                  Icons.payments_rounded,
+                  size: 18,
+                  color: OpenVtsColors.success.withValues(alpha: 0.9),
                 ),
-              ),
+                const SizedBox(width: OpenVtsSpacing.xs),
+                const Text(
+                  'Total Revenue',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: OpenVtsColors.textPrimary,
+                  ),
+                ),
+              ],
             ),
-            Text(
+            const SizedBox(height: OpenVtsSpacing.xs),
+            const Text(
               '—',
               style: TextStyle(
-                fontSize: 13,
+                fontSize: 24,
                 fontWeight: FontWeight.w700,
                 color: OpenVtsColors.textPrimary,
               ),
@@ -296,59 +370,58 @@ class _RevenueCard extends StatelessWidget {
         ),
       );
     }
+
+    final primary = totals.first;
+    final revenue = primary.totalAmountAsDouble ?? 0;
+    final currency =
+        primary.currency.trim().isEmpty ? 'USD' : primary.currency.trim();
+    final success = primary.countSuccess;
+
     return OpenVtsCard(
-      padding: const EdgeInsets.symmetric(
-        horizontal: OpenVtsSpacing.sm,
-        vertical: OpenVtsSpacing.sm,
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          const Text(
-            'Revenue (this month)',
-            style: TextStyle(
-              fontSize: 11,
-              color: OpenVtsColors.textSecondary,
+          Row(
+            children: [
+              Icon(
+                Icons.payments_rounded,
+                size: 18,
+                color: OpenVtsColors.success.withValues(alpha: 0.9),
+              ),
+              const SizedBox(width: OpenVtsSpacing.xs),
+              const Text(
+                'Total Revenue',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: OpenVtsColors.textPrimary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: OpenVtsSpacing.xs),
+          Text(
+            '$currency ${currencyFormat.format(revenue)}',
+            style: const TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
+              color: OpenVtsColors.textPrimary,
             ),
           ),
-          const SizedBox(height: 4),
-          ...totals.map((total) {
-            return Padding(
-              padding: const EdgeInsets.only(top: 2),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      total.currency.isEmpty ? '—' : total.currency,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: OpenVtsColors.textSecondary,
-                      ),
-                    ),
-                  ),
-                  Text(
-                    _formatTotal(total),
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: OpenVtsColors.textPrimary,
-                    ),
-                  ),
-                ],
+          if (success > 0) ...[
+            const SizedBox(height: 4),
+            Text(
+              'Avg $currency ${currencyFormat.format(revenue / success)} per transaction',
+              style: const TextStyle(
+                fontSize: 11,
+                color: OpenVtsColors.textTertiary,
               ),
-            );
-          }),
+            ),
+          ],
         ],
       ),
     );
-  }
-
-  String _formatTotal(SuperadminCurrencyTotal total) {
-    final value = total.totalAmountAsDouble;
-    if (value == null) {
-      return total.totalAmount.isEmpty ? '—' : total.totalAmount;
-    }
-    return NumberFormat.decimalPattern().format(value);
   }
 }
 
@@ -360,13 +433,26 @@ class _EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return OpenVtsCard(
-      padding: const EdgeInsets.symmetric(vertical: OpenVtsSpacing.lg),
-      child: Center(
-        child: Text(
-          message,
-          style: const TextStyle(
-            fontSize: 12,
-            color: OpenVtsColors.textSecondary,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: OpenVtsSpacing.lg),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.receipt_long_outlined,
+                size: 36,
+                color: OpenVtsColors.textSecondary.withValues(alpha: 0.5),
+              ),
+              const SizedBox(height: OpenVtsSpacing.xs),
+              Text(
+                message,
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: OpenVtsColors.textSecondary,
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -421,6 +507,7 @@ class _RecordPaymentSheetState extends ConsumerState<_RecordPaymentSheet> {
   String? _validateAmount(String? value) {
     final raw = value?.trim() ?? '';
     if (raw.isEmpty) return 'Amount is required.';
+    if (raw.length > 12) return 'Amount must be 12 characters or less.';
     if (!_amountPattern.hasMatch(raw)) {
       return 'Enter a valid amount (up to 2 decimals).';
     }
@@ -431,14 +518,13 @@ class _RecordPaymentSheetState extends ConsumerState<_RecordPaymentSheet> {
 
   String? _validateReference(String? value) {
     final raw = value?.trim() ?? '';
-    if (raw.length > 120) return 'Reference is too long.';
+    if (raw.length > 100) return 'Reference must be 100 characters or less.';
     return null;
   }
 
   Future<void> _submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
-    final provider =
-        superadminAdminDetailsControllerProvider(widget.adminId);
+    final provider = superadminAdminDetailsControllerProvider(widget.adminId);
     final controller = ref.read(provider.notifier);
     final ref0 = _reference.text.trim();
     final ok = await controller.recordManualPayment(
@@ -451,86 +537,111 @@ class _RecordPaymentSheetState extends ConsumerState<_RecordPaymentSheet> {
     );
     if (!mounted) return;
     if (ok) {
-      ToastHelper.showSuccess('Payment recorded.', context: context);
-      Navigator.of(context).maybePop();
+      ToastHelper.showSuccess('Payment recorded', context: context);
+      Navigator.of(context).pop();
     } else {
-      final message =
-          ref.read(provider).sectionErrorMessage ?? 'Failed to record payment.';
+      final message = ref.read(provider).sectionErrorMessage ??
+          'Unable to record payment right now.';
       ToastHelper.showError(message, context: context);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final provider =
-        superadminAdminDetailsControllerProvider(widget.adminId);
-    final isLoading =
-        ref.watch(provider.select((s) => s.isRecordingPayment));
-    final viewInsets = MediaQuery.of(context).viewInsets;
+    final provider = superadminAdminDetailsControllerProvider(widget.adminId);
+    final isLoading = ref.watch(provider.select((s) => s.isRecordingPayment));
 
-    return Padding(
-      padding: EdgeInsets.only(bottom: viewInsets.bottom),
-      child: SafeArea(
-        top: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const _SheetHeader(title: 'Record payment'),
-            Flexible(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(
-                  OpenVtsSpacing.md,
-                  OpenVtsSpacing.sm,
-                  OpenVtsSpacing.md,
-                  OpenVtsSpacing.sm,
-                ),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      OpenVtsTextField(
-                        label: 'Amount',
-                        controller: _amount,
-                        hintText: 'e.g. 1000.00',
-                        keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true,
-                        ),
-                        textInputAction: TextInputAction.next,
-                        validator: _validateAmount,
-                        prefixIcon: Icons.payments_outlined,
-                      ),
-                      const SizedBox(height: OpenVtsSpacing.sm),
-                      _ModeDropdown(
-                        value: _mode,
-                        options: _paymentModeOrder,
-                        onChanged: (next) {
-                          if (next != null) setState(() => _mode = next);
-                        },
-                      ),
-                      const SizedBox(height: OpenVtsSpacing.sm),
-                      OpenVtsTextField(
-                        label: 'Reference (optional)',
-                        controller: _reference,
-                        hintText: 'Bank ref / UTR / receipt no.',
-                        textInputAction: TextInputAction.done,
-                        validator: _validateReference,
-                        prefixIcon: Icons.tag,
-                      ),
-                    ],
+    return DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: 0.72,
+      minChildSize: 0.5,
+      maxChildSize: 0.9,
+      builder: (context, scrollController) {
+        return DecoratedBox(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(
+              top: Radius.circular(OpenVtsRadius.xl),
+            ),
+          ),
+          child: Column(
+            children: [
+              const SizedBox(height: OpenVtsSpacing.sm),
+              Center(
+                child: Container(
+                  width: 44,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: OpenVtsColors.border,
+                    borderRadius: BorderRadius.circular(OpenVtsRadius.sm),
                   ),
                 ),
               ),
-            ),
-            _SheetFooter(
-              isLoading: isLoading,
-              submitLabel: 'Record payment',
-              onCancel: () => Navigator.of(context).maybePop(),
-              onSubmit: _submit,
-            ),
-          ],
-        ),
-      ),
+              const SizedBox(height: OpenVtsSpacing.xs),
+              const _SheetHeader(title: 'Record Payment'),
+              const Divider(height: 1, color: OpenVtsColors.divider),
+              Expanded(
+                child: ListView(
+                  controller: scrollController,
+                  padding: const EdgeInsets.all(OpenVtsSpacing.md),
+                  children: [
+                    Form(
+                      key: _formKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          OpenVtsTextField(
+                            label: 'Amount',
+                            controller: _amount,
+                            hintText: '0.00',
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
+                            textInputAction: TextInputAction.next,
+                            validator: _validateAmount,
+                            prefixIcon: Icons.payments_outlined,
+                          ),
+                          const SizedBox(height: OpenVtsSpacing.sm),
+                          _ModeDropdown(
+                            value: _mode,
+                            options: _paymentModeOrder,
+                            onChanged: (next) {
+                              if (next != null) setState(() => _mode = next);
+                            },
+                          ),
+                          const SizedBox(height: OpenVtsSpacing.sm),
+                          OpenVtsTextField(
+                            label: 'Reference (optional)',
+                            controller: _reference,
+                            hintText: 'Bank ref / UTR / transaction ID',
+                            textInputAction: TextInputAction.done,
+                            validator: _validateReference,
+                            prefixIcon: Icons.tag,
+                          ),
+                          const SizedBox(height: OpenVtsSpacing.xs),
+                          const Text(
+                            'Payment will appear immediately in transaction list.',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: OpenVtsColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              _SheetFooter(
+                isLoading: isLoading,
+                submitLabel: 'Record Payment',
+                onCancel: () => Navigator.of(context).pop(),
+                onSubmit: _submit,
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
@@ -615,43 +726,28 @@ class _SheetHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        OpenVtsSpacing.md,
-        OpenVtsSpacing.sm,
-        OpenVtsSpacing.xs,
-        0,
-      ),
-      child: Column(
+      padding: const EdgeInsets.symmetric(horizontal: OpenVtsSpacing.md),
+      child: Row(
         children: [
-          Container(
-            width: 36,
-            height: 4,
-            margin: const EdgeInsets.only(top: 6, bottom: OpenVtsSpacing.sm),
-            decoration: BoxDecoration(
-              color: OpenVtsColors.border,
-              borderRadius: BorderRadius.circular(2),
+          Expanded(
+            child: Text(
+              title,
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: OpenVtsColors.textPrimary,
+              ),
             ),
           ),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: OpenVtsColors.textPrimary,
-                  ),
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.close_rounded, size: 20),
-                onPressed: () => Navigator.of(context).maybePop(),
-                tooltip: 'Close',
-              ),
-            ],
+          IconButton(
+            constraints: const BoxConstraints(
+              minWidth: 44,
+              minHeight: 44,
+            ),
+            icon: const Icon(Icons.close_rounded, size: 20),
+            onPressed: () => Navigator.of(context).pop(),
+            tooltip: 'Close',
           ),
-          const Divider(height: 1, color: OpenVtsColors.border),
         ],
       ),
     );
@@ -673,37 +769,35 @@ class _SheetFooter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        border: Border(top: BorderSide(color: OpenVtsColors.border)),
-        color: OpenVtsColors.surfaceElevated,
-      ),
-      padding: const EdgeInsets.fromLTRB(
-        OpenVtsSpacing.md,
-        OpenVtsSpacing.sm,
-        OpenVtsSpacing.md,
-        OpenVtsSpacing.sm,
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: OpenVtsButton(
-              label: 'Cancel',
-              variant: OpenVtsButtonVariant.secondary,
-              onPressed: isLoading ? null : onCancel,
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          OpenVtsSpacing.md,
+          OpenVtsSpacing.xs,
+          OpenVtsSpacing.md,
+          OpenVtsSpacing.md,
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: OpenVtsButton(
+                label: 'Cancel',
+                variant: OpenVtsButtonVariant.secondary,
+                onPressed: isLoading ? null : onCancel,
+              ),
             ),
-          ),
-          const SizedBox(width: OpenVtsSpacing.sm),
-          Expanded(
-            child: OpenVtsButton(
-              label: submitLabel,
-              isLoading: isLoading,
-              onPressed: isLoading ? null : onSubmit,
+            const SizedBox(width: OpenVtsSpacing.sm),
+            Expanded(
+              child: OpenVtsButton(
+                label: submitLabel,
+                isLoading: isLoading,
+                onPressed: isLoading ? null : onSubmit,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 }
-

@@ -60,6 +60,12 @@ class _RecordPaymentSheetState extends ConsumerState<RecordPaymentSheet> {
           ref.read(superadminPaymentsControllerProvider.notifier).loadAdmins(),
         );
       }
+
+      if (_adminId == null && state.admins.isNotEmpty) {
+        setState(() {
+          _adminId = state.selectedAdminId ?? state.admins.first.uid;
+        });
+      }
     });
   }
 
@@ -208,18 +214,6 @@ class _RecordPaymentSheetState extends ConsumerState<RecordPaymentSheet> {
   Widget build(BuildContext context) {
     final state = ref.watch(superadminPaymentsControllerProvider);
     final admins = state.admins;
-
-    if (_adminId == null && admins.isNotEmpty) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted || _adminId != null) {
-          return;
-        }
-
-        setState(() {
-          _adminId = admins.first.uid;
-        });
-      });
-    }
 
     final selectedAdmin = _selectedAdmin(admins);
     final amountError =

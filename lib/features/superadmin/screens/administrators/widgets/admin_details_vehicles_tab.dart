@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -28,23 +30,30 @@ class _AdminDetailsVehiclesTabState
   final TextEditingController _search = TextEditingController();
   _VehicleFilter _filter = _VehicleFilter.all;
 
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final provider =
-          superadminAdminDetailsControllerProvider(widget.adminId);
-      final state = ref.read(provider);
-      if (state.vehicles.isEmpty && !state.isLoadingVehicles) {
-        ref.read(provider.notifier).loadVehicles();
-      }
-    });
-  }
+  Timer? _debounce;
+  String _debouncedQuery = '';
+
+  List<SuperadminAdminVehicle>? _cachedFiltered;
+  List<SuperadminAdminVehicle>? _lastVehicles;
+  String? _lastQuery;
+  _VehicleFilter? _lastFilter;
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _search.dispose();
     super.dispose();
+  }
+
+  void _onSearchChanged() {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 250), () {
+      if (!mounted) return;
+      final q = _search.text.trim().toLowerCase();
+      if (q != _debouncedQuery) {
+        setState(() => _debouncedQuery = q);
+      }
+    });
   }
 
   bool _isExpiringSoon(DateTime? expiry) {
@@ -52,13 +61,28 @@ class _AdminDetailsVehiclesTabState
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final diff = expiry.difference(today).inDays;
-    return diff <= 30; // includes expired
+    return diff <= 30;
+  }
+
+  List<SuperadminAdminVehicle> _getFiltered(
+    List<SuperadminAdminVehicle> vehicles,
+  ) {
+    if (identical(vehicles, _lastVehicles) &&
+        _debouncedQuery == _lastQuery &&
+        _filter == _lastFilter &&
+        _cachedFiltered != null) {
+      return _cachedFiltered!;
+    }
+    _lastVehicles = vehicles;
+    _lastQuery = _debouncedQuery;
+    _lastFilter = _filter;
+    _cachedFiltered = _applyFilters(vehicles);
+    return _cachedFiltered!;
   }
 
   List<SuperadminAdminVehicle> _applyFilters(
     List<SuperadminAdminVehicle> vehicles,
   ) {
-    final query = _search.text.trim().toLowerCase();
     return vehicles.where((v) {
       switch (_filter) {
         case _VehicleFilter.all:
@@ -70,47 +94,51 @@ class _AdminDetailsVehiclesTabState
         case _VehicleFilter.expiring:
           if (!_isExpiringSoon(v.primaryExpiry)) return false;
       }
-      if (query.isEmpty) return true;
-      return v.name.toLowerCase().contains(query) ||
-          v.imei.toLowerCase().contains(query) ||
-          v.simNumber.toLowerCase().contains(query) ||
-          v.vehicleTypeName.toLowerCase().contains(query) ||
-          v.vehicleTypeSlug.toLowerCase().contains(query);
+      if (_debouncedQuery.isEmpty) return true;
+      return v.name.toLowerCase().contains(_debouncedQuery) ||
+          v.imei.toLowerCase().contains(_debouncedQuery) ||
+          v.simNumber.toLowerCase().contains(_debouncedQuery) ||
+          v.vehicleTypeName.toLowerCase().contains(_debouncedQuery) ||
+          v.vehicleTypeSlug.toLowerCase().contains(_debouncedQuery);
     }).toList(growable: false);
   }
 
   @override
   Widget build(BuildContext context) {
-    final provider =
-        superadminAdminDetailsControllerProvider(widget.adminId);
-    final state = ref.watch(provider);
+    final provider = superadminAdminDetailsControllerProvider(widget.adminId);
+    final vehicles = ref.watch(provider.select((s) => s.vehicles));
+    final isLoading = ref.watch(provider.select((s) => s.isLoadingVehicles));
+    final hasLoaded = ref.watch(provider.select((s) => s.hasLoadedVehicles));
+    final errorMessage =
+        ref.watch(provider.select((s) => s.vehiclesErrorMessage));
     final controller = ref.read(provider.notifier);
 
-    if (state.isLoadingVehicles && state.vehicles.isEmpty) {
+    if (isLoading && !hasLoaded) {
       return const OpenVtsCard(
         padding: EdgeInsets.symmetric(vertical: OpenVtsSpacing.lg),
         child: Center(child: OpenVtsLoader()),
       );
     }
 
-    if (state.sectionErrorMessage != null && state.vehicles.isEmpty) {
+    if (errorMessage != null && !hasLoaded) {
       return OpenVtsCard(
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: OpenVtsSpacing.md),
           child: OpenVtsErrorView(
-            message: state.sectionErrorMessage!,
-            onRetry: () => controller.loadVehicles(),
+            message: errorMessage.trim().isEmpty
+                ? 'Unable to load vehicles. Retry.'
+                : errorMessage,
+            onRetry: () => controller.loadVehicles(force: true),
           ),
         ),
       );
     }
 
-    final vehicles = state.vehicles;
     final total = vehicles.length;
     final blocked = vehicles.where((v) => v.isLicenseBlocked).length;
     final expiring =
         vehicles.where((v) => _isExpiringSoon(v.primaryExpiry)).length;
-    final filtered = _applyFilters(vehicles);
+    final filtered = _getFiltered(vehicles);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -119,11 +147,25 @@ class _AdminDetailsVehiclesTabState
           total: total,
           blocked: blocked,
           expiring: expiring,
+          isRefreshing: isLoading,
+          onRefresh: () => controller.loadVehicles(force: true),
         ),
+        if (errorMessage != null && hasLoaded) ...[
+          const SizedBox(height: OpenVtsSpacing.xs),
+          Text(
+            errorMessage.trim().isEmpty
+                ? 'Unable to refresh vehicles.'
+                : errorMessage,
+            style: const TextStyle(
+              fontSize: 11,
+              color: OpenVtsColors.error,
+            ),
+          ),
+        ],
         const SizedBox(height: OpenVtsSpacing.sm),
         _SearchField(
           controller: _search,
-          onChanged: () => setState(() {}),
+          onChanged: _onSearchChanged,
         ),
         const SizedBox(height: OpenVtsSpacing.xs),
         _FilterChips(
@@ -139,6 +181,7 @@ class _AdminDetailsVehiclesTabState
           ListView.separated(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
+            addAutomaticKeepAlives: false,
             itemCount: filtered.length,
             separatorBuilder: (_, __) =>
                 const SizedBox(height: OpenVtsSpacing.xs),
@@ -159,11 +202,15 @@ class _SummaryRow extends StatelessWidget {
     required this.total,
     required this.blocked,
     required this.expiring,
+    required this.isRefreshing,
+    required this.onRefresh,
   });
 
   final int total;
   final int blocked;
   final int expiring;
+  final bool isRefreshing;
+  final VoidCallback onRefresh;
 
   @override
   Widget build(BuildContext context) {
@@ -190,6 +237,34 @@ class _SummaryRow extends StatelessWidget {
             label: 'Expiring',
             value: expiring.toString(),
             icon: Icons.schedule_outlined,
+          ),
+        ),
+        const SizedBox(width: OpenVtsSpacing.xs),
+        GestureDetector(
+          onTap: isRefreshing ? null : onRefresh,
+          child: Container(
+            width: 36,
+            height: 36,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: OpenVtsColors.surface,
+              borderRadius: BorderRadius.circular(OpenVtsRadius.sm),
+              border: Border.all(color: OpenVtsColors.border),
+            ),
+            child: isRefreshing
+                ? const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: OpenVtsColors.textSecondary,
+                    ),
+                  )
+                : const Icon(
+                    Icons.refresh,
+                    size: 16,
+                    color: OpenVtsColors.textSecondary,
+                  ),
           ),
         ),
       ],
@@ -369,8 +444,7 @@ class _FilterChip extends StatelessWidget {
           style: TextStyle(
             fontSize: 11,
             fontWeight: FontWeight.w700,
-            color:
-                selected ? OpenVtsColors.white : OpenVtsColors.textSecondary,
+            color: selected ? OpenVtsColors.white : OpenVtsColors.textSecondary,
           ),
         ),
       ),

@@ -5,7 +5,6 @@ import '../../../../../core/theme/open_vts_colors.dart';
 import '../../../../../core/theme/open_vts_spacing.dart';
 import '../../../../../shared/widgets/open_vts_card.dart';
 import '../../../../../shared/widgets/open_vts_empty_state.dart';
-import '../../../../../shared/widgets/open_vts_metric_card.dart';
 import '../../../models/superadmin_payments_model.dart';
 import 'payments_mode_breakdown.dart';
 import 'payments_revenue_trend_chart.dart';
@@ -53,7 +52,9 @@ class PaymentsAnalyticsSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _SummaryMetricsGrid(summary: summary),
+        _KpiStrip(summary: summary),
+        const SizedBox(height: OpenVtsSpacing.sm),
+        _RevenueSummaryCard(summary: summary),
         const SizedBox(height: OpenVtsSpacing.sm),
         PaymentsRevenueTrendChart(analytics: model),
         const SizedBox(height: OpenVtsSpacing.sm),
@@ -107,70 +108,149 @@ class PaymentsAnalyticsSection extends StatelessWidget {
   }
 }
 
-class _SummaryMetricsGrid extends StatelessWidget {
-  const _SummaryMetricsGrid({required this.summary});
+class _KpiStrip extends StatelessWidget {
+  const _KpiStrip({required this.summary});
 
   final _AnalyticsSummary summary;
 
   @override
   Widget build(BuildContext context) {
     final compact = NumberFormat.compact(locale: 'en_US');
+
+    return Row(
+      children: [
+        Expanded(
+          child: _CompactKpiCard(
+            icon: Icons.check_circle_rounded,
+            iconColor: OpenVtsColors.success,
+            label: 'Successful',
+            value: compact.format(summary.success),
+          ),
+        ),
+        const SizedBox(width: OpenVtsSpacing.sm),
+        Expanded(
+          child: _CompactKpiCard(
+            icon: Icons.pending_rounded,
+            iconColor: OpenVtsColors.warning,
+            label: 'Pending',
+            value: compact.format(summary.pending),
+          ),
+        ),
+        const SizedBox(width: OpenVtsSpacing.sm),
+        Expanded(
+          child: _CompactKpiCard(
+            icon: Icons.cancel_rounded,
+            iconColor: OpenVtsColors.error,
+            label: 'Failed',
+            value: compact.format(summary.failed),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _CompactKpiCard extends StatelessWidget {
+  const _CompactKpiCard({
+    required this.icon,
+    required this.iconColor,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final Color iconColor;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return OpenVtsCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            size: 18,
+            color: iconColor,
+          ),
+          const SizedBox(height: OpenVtsSpacing.xs),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              color: OpenVtsColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 11,
+              color: OpenVtsColors.textTertiary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RevenueSummaryCard extends StatelessWidget {
+  const _RevenueSummaryCard({required this.summary});
+
+  final _AnalyticsSummary summary;
+
+  @override
+  Widget build(BuildContext context) {
     final currencyFormat = NumberFormat('#,##0.##', 'en_US');
 
-    final metrics = <_MetricData>[
-      _MetricData(
-        label: 'Revenue',
-        value: '${summary.currency} ${currencyFormat.format(summary.revenue)}',
-        caption: summary.success > 0
-            ? 'Avg ${summary.currency} ${currencyFormat.format(summary.avgValue)}'
-            : 'Avg ${summary.currency} 0',
-      ),
-      _MetricData(
-        label: 'Successful',
-        value: compact.format(summary.success),
-      ),
-      _MetricData(
-        label: 'Pending',
-        value: compact.format(summary.pending),
-      ),
-      _MetricData(
-        label: 'Failed',
-        value: compact.format(summary.failed),
-      ),
-      _MetricData(
-        label: 'Success Rate',
-        value: '${summary.successRate.toStringAsFixed(1)}%',
-      ),
-      _MetricData(
-        label: 'Total Transactions',
-        value: compact.format(summary.totalTransactions),
-      ),
-    ];
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final crossAxisCount = constraints.maxWidth >= 760 ? 3 : 2;
-
-        return GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: metrics.length,
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: crossAxisCount,
-            crossAxisSpacing: OpenVtsSpacing.sm,
-            mainAxisSpacing: OpenVtsSpacing.sm,
-            childAspectRatio: 1.42,
+    return OpenVtsCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.payments_rounded,
+                size: 18,
+                color: OpenVtsColors.success.withValues(alpha: 0.9),
+              ),
+              const SizedBox(width: OpenVtsSpacing.xs),
+              const Text(
+                'Total Revenue',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: OpenVtsColors.textPrimary,
+                ),
+              ),
+            ],
           ),
-          itemBuilder: (context, index) {
-            final metric = metrics[index];
-            return OpenVtsMetricCard(
-              label: metric.label,
-              value: metric.value,
-              caption: metric.caption,
-            );
-          },
-        );
-      },
+          const SizedBox(height: OpenVtsSpacing.xs),
+          Text(
+            '${summary.currency} ${currencyFormat.format(summary.revenue)}',
+            style: const TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
+              color: OpenVtsColors.textPrimary,
+            ),
+          ),
+          if (summary.success > 0) ...[
+            const SizedBox(height: 4),
+            Text(
+              'Avg ${summary.currency} ${currencyFormat.format(summary.avgValue)} per transaction',
+              style: const TextStyle(
+                fontSize: 11,
+                color: OpenVtsColors.textTertiary,
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }
@@ -180,35 +260,26 @@ class _AnalyticsLoadingSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    return const Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final crossAxisCount = constraints.maxWidth >= 760 ? 3 : 2;
-
-            return GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: 6,
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: crossAxisCount,
-                crossAxisSpacing: OpenVtsSpacing.sm,
-                mainAxisSpacing: OpenVtsSpacing.sm,
-                childAspectRatio: 1.42,
-              ),
-              itemBuilder: (context, index) {
-                return const _SkeletonMetricCard();
-              },
-            );
-          },
+        Row(
+          children: [
+            Expanded(child: _SkeletonMetricCard()),
+            SizedBox(width: OpenVtsSpacing.sm),
+            Expanded(child: _SkeletonMetricCard()),
+            SizedBox(width: OpenVtsSpacing.sm),
+            Expanded(child: _SkeletonMetricCard()),
+          ],
         ),
-        const SizedBox(height: OpenVtsSpacing.sm),
-        const _SkeletonSectionCard(height: 180),
-        const SizedBox(height: OpenVtsSpacing.sm),
-        const _SkeletonSectionCard(height: 150),
-        const SizedBox(height: OpenVtsSpacing.sm),
-        const _SkeletonSectionCard(height: 126),
+        SizedBox(height: OpenVtsSpacing.sm),
+        _SkeletonSectionCard(height: 110),
+        SizedBox(height: OpenVtsSpacing.sm),
+        _SkeletonSectionCard(height: 180),
+        SizedBox(height: OpenVtsSpacing.sm),
+        _SkeletonSectionCard(height: 150),
+        SizedBox(height: OpenVtsSpacing.sm),
+        _SkeletonSectionCard(height: 126),
       ],
     );
   }
@@ -296,18 +367,6 @@ class _SkeletonBlock extends StatelessWidget {
       ),
     );
   }
-}
-
-class _MetricData {
-  const _MetricData({
-    required this.label,
-    required this.value,
-    this.caption,
-  });
-
-  final String label;
-  final String value;
-  final String? caption;
 }
 
 class _AnalyticsSummary {

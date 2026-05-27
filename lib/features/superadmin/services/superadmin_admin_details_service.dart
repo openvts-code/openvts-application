@@ -159,7 +159,8 @@ class SuperadminAdminDetailsService {
     return SuperadminAdminVehicle.listFromJson(response.data);
   }
 
-  Future<List<SuperadminAdminDocument>> getAdminDocuments(String adminId) async {
+  Future<List<SuperadminAdminDocument>> getAdminDocuments(
+      String adminId) async {
     final id = _requireAdminId(adminId);
     final response = await _apiClient.get<dynamic>(
       ApiEndpoints.superadmin.documentsByAdmin(id),
@@ -288,6 +289,9 @@ class SuperadminAdminDetailsService {
   Future<FormData> _buildDocumentFormData(
     SuperadminAdminDocumentRequest request,
   ) async {
+    final tags =
+        request.tags.map((t) => t.trim()).where((t) => t.isNotEmpty).join(',');
+
     final formData = FormData();
     formData.fields.addAll(<MapEntry<String, String>>[
       MapEntry('title', request.title.trim()),
@@ -296,17 +300,8 @@ class SuperadminAdminDetailsService {
       MapEntry('associateId', request.associateId.trim()),
       MapEntry('isVisible', request.isVisible.toString()),
       MapEntry('description', request.description.trim()),
+      MapEntry('tags', tags),
     ]);
-
-    if (request.tags.isNotEmpty) {
-      final tags = request.tags
-          .map((t) => t.trim())
-          .where((t) => t.isNotEmpty)
-          .join(',');
-      if (tags.isNotEmpty) {
-        formData.fields.add(MapEntry('tags', tags));
-      }
-    }
 
     final expiry = request.expiryAt?.trim();
     if (expiry != null && expiry.isNotEmpty) {

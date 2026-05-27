@@ -194,9 +194,9 @@ class SuperadminAdminDetails {
               ]) ??
               '')
           .toUpperCase(),
-      stateCode:
-          _firstString(source, const ['stateCode', 'state_code', 'statecode']) ??
-              '',
+      stateCode: _firstString(
+              source, const ['stateCode', 'state_code', 'statecode']) ??
+          '',
       cityName: _firstString(source, const [
             'cityName',
             'city_name',
@@ -397,9 +397,22 @@ class SuperadminAdminAddress {
       stateCode:
           _firstString(source, const ['stateCode', 'state_code', 'state']) ??
               '',
-      cityId: _firstString(source, const ['cityId', 'city_id']) ?? '',
-      cityName:
-          _firstString(source, const ['cityName', 'city_name', 'city']) ?? '',
+      cityId: _firstString(source, const [
+            'cityId',
+            'city_id',
+            'cityName',
+            'city_name',
+            'city',
+          ]) ??
+          '',
+      cityName: _firstString(source, const [
+            'cityName',
+            'city_name',
+            'city',
+            'cityId',
+            'city_id',
+          ]) ??
+          '',
       pincode: _firstString(source, const [
             'pincode',
             'postalCode',
@@ -445,17 +458,25 @@ class SuperadminUpdateAdminRequest {
   final String pincode;
 
   Map<String, dynamic> toJson() {
-    return <String, dynamic>{
+    final json = <String, dynamic>{
       'name': name.trim(),
-      'email': email.trim(),
       'mobilePrefix': mobilePrefix.trim(),
       'mobileNumber': mobileNumber.trim(),
       'addressLine': addressLine.trim(),
       'countryCode': countryCode.trim().toUpperCase(),
       'stateCode': stateCode.trim(),
       'cityName': cityName.trim(),
-      'pincode': pincode.trim(),
     };
+
+    void addIfNotEmpty(String key, String value) {
+      final v = value.trim();
+      if (v.isNotEmpty) json[key] = v;
+    }
+
+    addIfNotEmpty('email', email);
+    addIfNotEmpty('pincode', pincode);
+
+    return json;
   }
 }
 
@@ -476,9 +497,9 @@ class SuperadminAdminPasswordUpdateRequest {
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
-      'adminid': adminId,
-      'newpassword': newPassword,
-      'confirmpassword': confirmPassword,
+      'adminid': adminId.trim(),
+      'newpassword': newPassword.trim(),
+      'confirmpassword': confirmPassword.trim(),
     };
   }
 }
@@ -503,20 +524,30 @@ class SuperadminAdminCompanyUpdateRequest {
   final String primaryColor;
 
   Map<String, dynamic> toJson() {
-    final social = <String, dynamic>{};
+    final social = <String, String>{};
     socialLinks.forEach((key, value) {
+      final normalizedKey = key.trim();
       final normalized = value.trim();
-      if (normalized.isEmpty) return;
-      social[key] = normalized;
+      if (normalizedKey.isEmpty || normalized.isEmpty) return;
+      social[normalizedKey] = normalized;
     });
 
-    return <String, dynamic>{
+    final payload = <String, dynamic>{
       'name': name.trim(),
-      'websiteUrl': websiteUrl.trim(),
-      'customDomain': customDomain.trim(),
-      'socialLinks': social,
-      'primaryColor': primaryColor.trim(),
     };
+
+    final trimmedWebsite = websiteUrl.trim();
+    if (trimmedWebsite.isNotEmpty) payload['websiteUrl'] = trimmedWebsite;
+
+    final trimmedDomain = customDomain.trim();
+    if (trimmedDomain.isNotEmpty) payload['customDomain'] = trimmedDomain;
+
+    if (social.isNotEmpty) payload['socialLinks'] = social;
+
+    final trimmedColor = primaryColor.trim();
+    if (trimmedColor.isNotEmpty) payload['primaryColor'] = trimmedColor;
+
+    return payload;
   }
 }
 
@@ -678,9 +709,23 @@ class SuperadminAdminVehicle {
             const <String, dynamic>{};
 
     return SuperadminAdminVehicle(
-      id: _firstString(source, const ['id', '_id', 'vehicleId']) ?? '',
+      id: _firstString(source, const [
+            'id',
+            '_id',
+            'uid',
+            'vehicleId',
+            'vehicle_id',
+          ]) ??
+          '',
       name: _firstString(source, const ['name', 'vehicleName']) ?? '',
-      imei: _firstString(source, const ['imei', 'IMEI', 'deviceId']) ?? '',
+      imei: _firstString(source, const [
+            'imei',
+            'IMEI',
+            'deviceImei',
+            'device_imei',
+            'deviceId',
+          ]) ??
+          '',
       simNumber: _firstString(source, const [
             'simNumber',
             'sim_number',
@@ -692,7 +737,8 @@ class SuperadminAdminVehicle {
       isLicenseBlocked: _parseBool(
             source['isLicenseBlocked'] ??
                 source['is_license_blocked'] ??
-                source['licenseBlocked'],
+                source['licenseBlocked'] ??
+                source['is_blocked'],
           ) ??
           false,
       licenseBlockedAt: _firstDate(source, const [
@@ -725,6 +771,8 @@ class SuperadminAdminVehicle {
         'expiryAt',
         'expiry_at',
         'expiry',
+        'licenseExpiry',
+        'license_expiry',
       ]),
       gmtOffset: _firstString(source, const [
             'gmtOffset',
@@ -737,7 +785,19 @@ class SuperadminAdminVehicle {
   }
 
   static List<SuperadminAdminVehicle> listFromJson(dynamic json) {
-    return _extractList(json)
+    return _extractList(
+      json,
+      preferredKeys: const [
+        'data',
+        'items',
+        'vehicles',
+        'rows',
+        'result',
+        'records',
+        'list',
+        'results',
+      ],
+    )
         .map(_asMap)
         .where((m) => m.isNotEmpty)
         .map(SuperadminAdminVehicle.fromJson)
@@ -828,24 +888,25 @@ class SuperadminAdminDocument {
           ]) ??
           '',
       fileName: _firstString(source, const ['fileName', 'file_name']) ?? '',
-      fileType: _firstString(source, const ['fileType', 'file_type', 'mime']) ??
-          '',
-      filePath: _firstString(source, const ['filePath', 'file_path', 'path']) ??
-          '',
+      fileType:
+          _firstString(source, const ['fileType', 'file_type', 'mime']) ?? '',
+      filePath:
+          _firstString(source, const ['filePath', 'file_path', 'path']) ?? '',
       fileUrl: _firstString(source, const ['fileUrl', 'file_url', 'url']) ?? '',
       createdAt: _firstDate(source, const ['createdAt', 'created_at']),
       expiryAt: _firstDate(source, const ['expiryAt', 'expiry_at', 'expiry']),
       isVisible: _parseBool(
-            source['isVisible'] ??
-                source['is_visible'] ??
-                source['visible'],
+            source['isVisible'] ?? source['is_visible'] ?? source['visible'],
           ) ??
           true,
     );
   }
 
   static List<SuperadminAdminDocument> listFromJson(dynamic json) {
-    return _extractList(json)
+    return _extractList(
+      json,
+      preferredKeys: const ['documents', 'docs', 'items', 'rows', 'data'],
+    )
         .map(_asMap)
         .where((m) => m.isNotEmpty)
         .map(SuperadminAdminDocument.fromJson)
@@ -872,16 +933,38 @@ class SuperadminDocumentTypeOption {
 
   factory SuperadminDocumentTypeOption.fromJson(dynamic json) {
     final source = _asMap(json);
+    final normalizedDocFor = (_firstString(source, const [
+              'docFor',
+              'doc_for',
+              'typeFor',
+              'type_for',
+              'associateType',
+              'associate_type',
+              'targetType',
+              'target_type',
+              'for',
+            ]) ??
+            '')
+        .toUpperCase();
     return SuperadminDocumentTypeOption(
       id: _firstString(source, const ['id', '_id', 'typeId']) ?? '',
       name: _firstString(source, const ['name', 'label', 'title']) ?? '',
-      docFor: (_firstString(source, const ['docFor', 'doc_for', 'for']) ?? '')
-          .toUpperCase(),
+      docFor: normalizedDocFor,
     );
   }
 
   static List<SuperadminDocumentTypeOption> listFromJson(dynamic json) {
-    return _extractList(json)
+    return _extractList(
+      json,
+      preferredKeys: const [
+        'documentTypes',
+        'documenttypes',
+        'types',
+        'items',
+        'rows',
+        'data',
+      ],
+    )
         .map(_asMap)
         .where((m) => m.isNotEmpty)
         .map(SuperadminDocumentTypeOption.fromJson)
@@ -936,11 +1019,16 @@ class SuperadminAdminActivityLogPage {
     final root = _asMap(json);
     final source = _firstMap(root, const ['data', 'result']) ?? root;
 
-    final listSource =
-        _firstList(source, const ['items', 'logs', 'activities', 'rows']) ??
-            (source.containsKey('data') && source['data'] is List
-                ? source['data'] as List
-                : const <dynamic>[]);
+    final listSource = _firstList(source, const [
+          'items',
+          'logs',
+          'activities',
+          'rows',
+          'result',
+        ]) ??
+        (source.containsKey('data') && source['data'] is List
+            ? source['data'] as List
+            : const <dynamic>[]);
 
     final items = listSource
         .map(_asMap)
@@ -955,15 +1043,19 @@ class SuperadminAdminActivityLogPage {
       nextCursorId: _firstInt(source, const [
         'nextCursorId',
         'next_cursor_id',
+        'nextCursor',
+        'next_cursor',
         'cursorId',
         'cursor_id',
+        'cursor',
       ]),
       hasMore: _parseBool(
             source['hasMore'] ?? source['has_more'] ?? source['hasNext'],
           ) ??
           false,
-      admin:
-          adminMap == null ? null : SuperadminAdminActivityLogUser.fromJson(adminMap),
+      admin: adminMap == null
+          ? null
+          : SuperadminAdminActivityLogUser.fromJson(adminMap),
     );
   }
 }
@@ -1037,8 +1129,8 @@ class SuperadminAdminActivityLogUser {
     final source = _asMap(json);
     return SuperadminAdminActivityLogUser(
       id: _firstString(source, const ['id', '_id', 'uid']) ?? '',
-      name: _firstString(source, const ['name', 'fullName', 'displayName']) ??
-          '',
+      name:
+          _firstString(source, const ['name', 'fullName', 'displayName']) ?? '',
       email: _firstString(source, const ['email', 'mail']) ?? '',
     );
   }
@@ -1056,10 +1148,9 @@ Map<String, dynamic> _asMap(dynamic value) {
   return const <String, dynamic>{};
 }
 
-List<dynamic> _extractList(dynamic json) {
-  if (json is List) return json;
-  final map = _asMap(json);
-  for (final key in const [
+List<dynamic> _extractList(
+  dynamic json, {
+  List<String> preferredKeys = const [
     'data',
     'items',
     'rows',
@@ -1068,14 +1159,19 @@ List<dynamic> _extractList(dynamic json) {
     'list',
     'results',
     'logs',
-  ]) {
-    final value = map[key];
+  ],
+}) {
+  if (json is List) return json;
+  final map = _asMap(json);
+  for (final key in preferredKeys) {
+    final value = _valueForKey(map, key);
     if (value is List) return value;
+    if (value is Iterable) return value.toList(growable: false);
   }
   for (final key in const ['data', 'result', 'payload', 'response']) {
-    final nested = map[key];
+    final nested = _valueForKey(map, key);
     if (nested == null || identical(nested, json)) continue;
-    final extracted = _extractList(nested);
+    final extracted = _extractList(nested, preferredKeys: preferredKeys);
     if (extracted.isNotEmpty) return extracted;
   }
   return const <dynamic>[];

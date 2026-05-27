@@ -183,29 +183,45 @@ class _AdminDetailsActivityTabState
           ),
         ],
         const SizedBox(height: OpenVtsSpacing.md),
-        if (state.sectionErrorMessage != null && state.activityLogs.isEmpty)
+        if (state.isLoadingActivity && state.activityLogs.isEmpty)
+          const OpenVtsCard(
+            padding: EdgeInsets.symmetric(vertical: OpenVtsSpacing.lg),
+            child: Center(
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: OpenVtsColors.textSecondary,
+                ),
+              ),
+            ),
+          )
+        else if (state.sectionErrorMessage != null &&
+            state.activityLogs.isEmpty)
           OpenVtsCard(
             child: Padding(
-              padding:
-                  const EdgeInsets.symmetric(vertical: OpenVtsSpacing.md),
+              padding: const EdgeInsets.symmetric(vertical: OpenVtsSpacing.md),
               child: OpenVtsErrorView(
                 message: state.sectionErrorMessage!,
                 onRetry: () => ref
-                    .read(superadminAdminDetailsControllerProvider(
-                            widget.adminId)
-                        .notifier)
+                    .read(
+                        superadminAdminDetailsControllerProvider(widget.adminId)
+                            .notifier)
                     .loadActivity(),
               ),
             ),
           )
         else if (state.activityLogs.isEmpty)
-          const OpenVtsCard(
+          OpenVtsCard(
             child: Padding(
-              padding: EdgeInsets.symmetric(vertical: OpenVtsSpacing.lg),
+              padding: const EdgeInsets.symmetric(vertical: OpenVtsSpacing.lg),
               child: Center(
                 child: Text(
-                  'No activity yet.',
-                  style: TextStyle(
+                  hasAnyFilter
+                      ? 'No activity matches your filters.'
+                      : 'No activity recorded yet.',
+                  style: const TextStyle(
                     fontSize: 12,
                     color: OpenVtsColors.textSecondary,
                   ),
@@ -342,14 +358,12 @@ class _GroupChips extends StatelessWidget {
                 vertical: 6,
               ),
               decoration: BoxDecoration(
-                color: isActive
-                    ? OpenVtsColors.brandInk
-                    : OpenVtsColors.surface,
+                color:
+                    isActive ? OpenVtsColors.brandInk : OpenVtsColors.surface,
                 borderRadius: BorderRadius.circular(OpenVtsRadius.pill),
                 border: Border.all(
-                  color: isActive
-                      ? OpenVtsColors.brandInk
-                      : OpenVtsColors.border,
+                  color:
+                      isActive ? OpenVtsColors.brandInk : OpenVtsColors.border,
                 ),
               ),
               child: Text(
@@ -751,8 +765,7 @@ class _ActivityDetailSheet extends StatelessWidget {
                         padding: const EdgeInsets.all(OpenVtsSpacing.sm),
                         decoration: BoxDecoration(
                           color: OpenVtsColors.surface,
-                          borderRadius:
-                              BorderRadius.circular(OpenVtsRadius.sm),
+                          borderRadius: BorderRadius.circular(OpenVtsRadius.sm),
                           border: Border.all(color: OpenVtsColors.border),
                         ),
                         child: SelectableText(
@@ -822,10 +835,7 @@ class _DetailRow extends StatelessWidget {
 String _humanizeAction(String action) {
   if (action.trim().isEmpty) return 'Activity';
   final parts = action.split(RegExp(r'[._:/]'));
-  return parts
-      .where((p) => p.isNotEmpty)
-      .map(_titleCase)
-      .join(' · ');
+  return parts.where((p) => p.isNotEmpty).map(_titleCase).join(' · ');
 }
 
 String _titleCase(String value) {

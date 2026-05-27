@@ -30,6 +30,11 @@ class AppConfig {
     );
   }
 
+  static String apiOriginBaseUrl() {
+    final uri = Uri.parse(apiBaseUrl);
+    return '${uri.scheme}://${uri.authority}';
+  }
+
   // Reduced defaults to speed up UI failure feedback on mobile.
   static const connectTimeoutSeconds = 8;
   static const receiveTimeoutSeconds = 12;

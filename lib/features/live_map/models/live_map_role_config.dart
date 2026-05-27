@@ -113,9 +113,8 @@ class LiveMapRoleConfig {
       mapTelemetryEndpoint: '$base/map-telemetry',
       mapEventsEndpoint: '$base/map-events',
       vehicleDetailsByImei: (imei) =>
-          '$base/vehicles/by-imei/${_e(imei)}',
-      vehicleLogsByImei: (imei) =>
-          '$base/vehicles/by-imei/${_e(imei)}/logs',
+          '$base/vehicles/by-imei/${_e(imei)}/details',
+      vehicleLogsByImei: (imei) => '$base/vehicles/by-imei/${_e(imei)}/logs',
       vehicleEventsByImei: (imei) =>
           '$base/vehicles/by-imei/${_e(imei)}/events',
       vehicleHistoryByImei: (imei) =>
@@ -124,8 +123,7 @@ class LiveMapRoleConfig {
           '$base/vehicles/by-imei/${_e(imei)}/replay',
       vehicleSensorsByImei: (imei) =>
           '$base/vehicles/by-imei/${_e(imei)}/sensors',
-      vehicleTrailByImei: (imei) =>
-          '$base/vehicles/by-imei/${_e(imei)}/trail',
+      vehicleTrailByImei: (imei) => '$base/vehicles/by-imei/${_e(imei)}/trail',
       geofencesEndpoint: '$base/geofences',
       poisEndpoint: '$base/pois',
       routesEndpoint: '$base/routes',
@@ -135,8 +133,7 @@ class LiveMapRoleConfig {
           '$base/vehicles/by-imei/${_e(imei)}/send-command',
       commandHistoryByImei: (imei) =>
           '$base/vehicles/by-imei/${_e(imei)}/commands',
-      commandStatusByCmdId: (cmdId) =>
-          '$base/commands/status/${_e(cmdId)}',
+      commandStatusByCmdId: (cmdId) => '$base/commands/status/${_e(cmdId)}',
       commandLogByCmdId: (cmdId) => '$base/commands/${_e(cmdId)}',
       supportsGeofence: true,
       supportsPoi: true,
@@ -164,9 +161,8 @@ class LiveMapRoleConfig {
       mapTelemetryEndpoint: '$base/map-telemetry',
       mapEventsEndpoint: '$base/map-events',
       vehicleDetailsByImei: (imei) =>
-          '$base/vehicles/by-imei/${_e(imei)}',
-      vehicleLogsByImei: (imei) =>
-          '$base/vehicles/by-imei/${_e(imei)}/logs',
+          '$base/vehicles/by-imei/${_e(imei)}/details',
+      vehicleLogsByImei: (imei) => '$base/vehicles/by-imei/${_e(imei)}/logs',
       vehicleEventsByImei: (imei) =>
           '$base/vehicles/by-imei/${_e(imei)}/events',
       vehicleHistoryByImei: (imei) =>
@@ -175,16 +171,14 @@ class LiveMapRoleConfig {
           '$base/vehicles/by-imei/${_e(imei)}/replay',
       vehicleSensorsByImei: (imei) =>
           '$base/vehicles/by-imei/${_e(imei)}/sensors',
-      vehicleTrailByImei: (imei) =>
-          '$base/vehicles/by-imei/${_e(imei)}/trail',
+      vehicleTrailByImei: (imei) => '$base/vehicles/by-imei/${_e(imei)}/trail',
       customCommandsEndpoint: '$base/customcommands',
       systemVariablesEndpoint: '$base/systemvariables',
       sendCommandByImei: (imei) =>
           '$base/vehicles/by-imei/${_e(imei)}/send-command',
       commandHistoryByImei: (imei) =>
           '$base/vehicles/by-imei/${_e(imei)}/commands',
-      commandStatusByCmdId: (cmdId) =>
-          '$base/commands/status/${_e(cmdId)}',
+      commandStatusByCmdId: (cmdId) => '$base/commands/status/${_e(cmdId)}',
       commandLogByCmdId: (cmdId) => '$base/commands/${_e(cmdId)}',
       supportsGeofence: false,
       supportsPoi: false,
@@ -212,9 +206,8 @@ class LiveMapRoleConfig {
       mapTelemetryEndpoint: '$base/map-telemetry',
       mapEventsEndpoint: '$base/map-events',
       vehicleDetailsByImei: (imei) =>
-          '$base/vehicles/by-imei/${_e(imei)}',
-      vehicleLogsByImei: (imei) =>
-          '$base/vehicles/by-imei/${_e(imei)}/logs',
+          '$base/vehicles/by-imei/${_e(imei)}/details',
+      vehicleLogsByImei: (imei) => '$base/vehicles/by-imei/${_e(imei)}/logs',
       vehicleEventsByImei: (imei) =>
           '$base/vehicles/by-imei/${_e(imei)}/events',
       vehicleHistoryByImei: (imei) =>
@@ -223,16 +216,14 @@ class LiveMapRoleConfig {
           '$base/vehicles/by-imei/${_e(imei)}/replay',
       vehicleSensorsByImei: (imei) =>
           '$base/vehicles/by-imei/${_e(imei)}/sensors',
-      vehicleTrailByImei: (imei) =>
-          '$base/vehicles/by-imei/${_e(imei)}/trail',
+      vehicleTrailByImei: (imei) => '$base/vehicles/by-imei/${_e(imei)}/trail',
       geofencesEndpoint: '$base/geofences',
       poisEndpoint: '$base/pois',
       routesEndpoint: '$base/routes',
       customCommandsEndpoint: '$base/customcommands',
       systemVariablesEndpoint: '$base/systemvariables',
       userSendCommandBulkEndpoint: '$base/commands/send-bulk',
-      commandStatusByCmdId: (cmdId) =>
-          '$base/commands/status/${_e(cmdId)}',
+      commandStatusByCmdId: (cmdId) => '$base/commands/status/${_e(cmdId)}',
       userCommandHistoryByVehicleId: (vehicleId) =>
           '$base/vehicles/${_e(vehicleId)}/commands',
       commandLogByCmdId: (cmdId) => '$base/commands/${_e(cmdId)}',

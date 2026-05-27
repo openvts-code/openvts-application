@@ -67,11 +67,8 @@ class _SuperadminCreateAdminScreenState
       await ref
           .read(superadminAdministratorsControllerProvider.notifier)
           .prepareCreateForm();
-    } catch (error) {
-      if (!mounted) {
-        return;
-      }
-      ToastHelper.showError(error.toString(), context: context);
+    } catch (_) {
+      // Error state is handled by the controller/state errorMessage field.
     }
   }
 
@@ -96,8 +93,7 @@ class _SuperadminCreateAdminScreenState
     final controller =
         ref.read(superadminAdministratorsControllerProvider.notifier);
 
-    final showCatalogLoader =
-        state.isCatalogLoading && state.countries.isEmpty;
+    final showCatalogLoader = state.isCatalogLoading && state.countries.isEmpty;
 
     return OpenVtsPageScaffold(
       title: 'Create Admin',
@@ -197,8 +193,7 @@ class _SuperadminCreateAdminScreenState
           hintText: 'Jane Smith',
           controller: _nameController,
           textInputAction: TextInputAction.next,
-          validator: (value) =>
-              Validators.required(value, fieldName: 'Full name'),
+          validator: Validators.adminName,
         ),
         OpenVtsTextField(
           label: 'Email',
@@ -206,13 +201,7 @@ class _SuperadminCreateAdminScreenState
           controller: _emailController,
           keyboardType: TextInputType.emailAddress,
           textInputAction: TextInputAction.next,
-          validator: (value) {
-            final normalized = value?.trim() ?? '';
-            if (normalized.isEmpty) {
-              return null;
-            }
-            return Validators.email(normalized);
-          },
+          validator: Validators.adminEmailRequired,
         ),
         LayoutBuilder(
           builder: (context, constraints) {
@@ -222,12 +211,14 @@ class _SuperadminCreateAdminScreenState
                 children: [
                   OpenVtsSearchableDropdown<String>(
                     label: 'Mobile prefix',
+                    required: true,
                     hintText: '+91',
                     sheetTitle: 'Select mobile prefix',
                     searchHintText: 'Search dial code or country',
                     leadingIcon: Icons.public_rounded,
                     options: mobileOptions,
                     value: _selectedMobilePrefix,
+                    validator: Validators.mobilePrefix,
                     onChanged: (value) =>
                         setState(() => _selectedMobilePrefix = value),
                   ),
@@ -238,6 +229,7 @@ class _SuperadminCreateAdminScreenState
                     controller: _mobileNumberController,
                     keyboardType: TextInputType.phone,
                     textInputAction: TextInputAction.next,
+                    validator: Validators.mobileNumber,
                   ),
                 ],
               );
@@ -248,12 +240,14 @@ class _SuperadminCreateAdminScreenState
                 Expanded(
                   child: OpenVtsSearchableDropdown<String>(
                     label: 'Mobile prefix',
+                    required: true,
                     hintText: '+91',
                     sheetTitle: 'Select mobile prefix',
                     searchHintText: 'Search dial code or country',
                     leadingIcon: Icons.public_rounded,
                     options: mobileOptions,
                     value: _selectedMobilePrefix,
+                    validator: Validators.mobilePrefix,
                     onChanged: (value) =>
                         setState(() => _selectedMobilePrefix = value),
                   ),
@@ -267,6 +261,7 @@ class _SuperadminCreateAdminScreenState
                     controller: _mobileNumberController,
                     keyboardType: TextInputType.phone,
                     textInputAction: TextInputAction.next,
+                    validator: Validators.mobileNumber,
                   ),
                 ),
               ],
@@ -289,8 +284,7 @@ class _SuperadminCreateAdminScreenState
           hintText: 'janesmith',
           controller: _usernameController,
           textInputAction: TextInputAction.next,
-          validator: (value) =>
-              Validators.required(value, fieldName: 'Username'),
+          validator: Validators.adminUsername,
         ),
         OpenVtsTextField(
           label: 'Password',
@@ -300,7 +294,8 @@ class _SuperadminCreateAdminScreenState
           textInputAction: TextInputAction.next,
           suffixIcon: IconButton(
             tooltip: _obscurePassword ? 'Show password' : 'Hide password',
-            onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+            onPressed: () =>
+                setState(() => _obscurePassword = !_obscurePassword),
             icon: Icon(
               _obscurePassword
                   ? Icons.visibility_off_outlined
@@ -309,17 +304,7 @@ class _SuperadminCreateAdminScreenState
               color: OpenVtsColors.textSecondary,
             ),
           ),
-          validator: (value) {
-            final requiredMessage =
-                Validators.required(value, fieldName: 'Password');
-            if (requiredMessage != null) {
-              return requiredMessage;
-            }
-            if ((value?.trim().length ?? 0) < 6) {
-              return 'Password must be at least 6 characters';
-            }
-            return null;
-          },
+          validator: Validators.adminPassword,
         ),
         OpenVtsTextField(
           label: 'Confirm password',
@@ -328,9 +313,8 @@ class _SuperadminCreateAdminScreenState
           obscureText: _obscureConfirmPassword,
           textInputAction: TextInputAction.next,
           suffixIcon: IconButton(
-            tooltip: _obscureConfirmPassword
-                ? 'Show password'
-                : 'Hide password',
+            tooltip:
+                _obscureConfirmPassword ? 'Show password' : 'Hide password',
             onPressed: () => setState(
               () => _obscureConfirmPassword = !_obscureConfirmPassword,
             ),
@@ -342,15 +326,10 @@ class _SuperadminCreateAdminScreenState
               color: OpenVtsColors.textSecondary,
             ),
           ),
-          validator: (value) {
-            if (value == null || value.isEmpty) {
-              return 'Please confirm the password';
-            }
-            if (value != _passwordController.text) {
-              return 'Passwords do not match';
-            }
-            return null;
-          },
+          validator: (value) => Validators.adminConfirmPassword(
+            value,
+            _passwordController.text,
+          ),
         ),
       ],
     );
@@ -368,8 +347,7 @@ class _SuperadminCreateAdminScreenState
           hintText: 'Acme Logistics Pvt. Ltd.',
           controller: _companyController,
           textInputAction: TextInputAction.next,
-          validator: (value) =>
-              Validators.required(value, fieldName: 'Company name'),
+          validator: Validators.companyName,
         ),
         OpenVtsTextField(
           label: 'Address',
@@ -377,8 +355,7 @@ class _SuperadminCreateAdminScreenState
           controller: _addressController,
           maxLines: 3,
           textInputAction: TextInputAction.newline,
-          validator: (value) =>
-              Validators.required(value, fieldName: 'Address'),
+          validator: Validators.address,
         ),
       ],
     );
@@ -515,9 +492,8 @@ class _SuperadminCreateAdminScreenState
           isLoading: _selectedStateCode != null &&
               state.isCatalogLoading &&
               cityOptions.isEmpty,
-          validator: (value) => value == null || value.trim().isEmpty
-              ? 'City is required'
-              : null,
+          validator: (value) =>
+              value == null || value.trim().isEmpty ? 'City is required' : null,
           onChanged: (value) => setState(() => _selectedCityName = value),
         ),
         OpenVtsTextField(
@@ -526,6 +502,7 @@ class _SuperadminCreateAdminScreenState
           controller: _pincodeController,
           keyboardType: TextInputType.number,
           textInputAction: TextInputAction.next,
+          validator: Validators.pincodeOptional,
         ),
       ],
     );
@@ -544,20 +521,7 @@ class _SuperadminCreateAdminScreenState
           controller: _creditsController,
           keyboardType: TextInputType.number,
           textInputAction: TextInputAction.done,
-          validator: (value) {
-            final normalized = value?.trim() ?? '';
-            if (normalized.isEmpty) {
-              return null;
-            }
-            final parsed = int.tryParse(normalized);
-            if (parsed == null) {
-              return 'Enter a valid credit value';
-            }
-            if (parsed < 0) {
-              return 'Credits cannot be negative';
-            }
-            return null;
-          },
+          validator: Validators.credits,
         ),
       ],
     );
@@ -606,8 +570,8 @@ class _SuperadminCreateAdminScreenState
           password: _passwordController.text,
           companyName: _companyController.text,
           address: _addressController.text,
-          country: selectedCountry.name,
-          state: selectedState.name,
+          country: selectedCountry.code,
+          state: selectedState.code,
           city: _selectedCityName!,
           pincode: _pincodeController.text,
           credits: _creditsController.text,
@@ -619,7 +583,7 @@ class _SuperadminCreateAdminScreenState
       }
 
       ToastHelper.showSuccess(
-        'Administrator "${_nameController.text.trim()}" created.',
+        'Administrator created.',
         context: context,
       );
       if (context.canPop()) {
@@ -629,7 +593,12 @@ class _SuperadminCreateAdminScreenState
       if (!mounted) {
         return;
       }
-      ToastHelper.showError(error.toString(), context: context);
+      final errorMsg =
+          ref.read(superadminAdministratorsControllerProvider).errorMessage;
+      ToastHelper.showError(
+        errorMsg ?? 'Failed to create administrator.',
+        context: context,
+      );
     }
   }
 
@@ -811,15 +780,15 @@ class _SectionHeader extends StatelessWidget {
           width: 36,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: isDark ? OpenVtsColors.darkBackground : OpenVtsColors.surface,
+            color:
+                isDark ? OpenVtsColors.darkBackground : OpenVtsColors.surface,
             shape: BoxShape.circle,
           ),
           child: Icon(
             icon,
             size: 18,
-            color: isDark
-                ? OpenVtsColors.darkTextPrimary
-                : OpenVtsColors.brandInk,
+            color:
+                isDark ? OpenVtsColors.darkTextPrimary : OpenVtsColors.brandInk,
           ),
         ),
         const SizedBox(width: OpenVtsSpacing.sm),

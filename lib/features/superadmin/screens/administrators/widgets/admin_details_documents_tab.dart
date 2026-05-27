@@ -49,53 +49,46 @@ class AdminDetailsDocumentsTab extends ConsumerStatefulWidget {
 class _AdminDetailsDocumentsTabState
     extends ConsumerState<AdminDetailsDocumentsTab> {
   @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final provider =
-          superadminAdminDetailsControllerProvider(widget.adminId);
-      final state = ref.read(provider);
-      final controller = ref.read(provider.notifier);
-      if (state.documents.isEmpty && !state.isLoadingDocuments) {
-        controller.loadDocuments();
-      }
-      if (state.documentTypes.isEmpty && !state.isLoadingDocumentTypes) {
-        controller.loadDocumentTypes();
-      }
-    });
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final provider =
-        superadminAdminDetailsControllerProvider(widget.adminId);
-    final state = ref.watch(provider);
+    final provider = superadminAdminDetailsControllerProvider(widget.adminId);
+    final docs = ref.watch(provider.select((s) => s.documents));
+    final isLoading = ref.watch(provider.select((s) => s.isLoadingDocuments));
+    final hasLoaded = ref.watch(provider.select((s) => s.hasLoadedDocuments));
+    final isUploading =
+        ref.watch(provider.select((s) => s.isUploadingDocument));
+    final errorMessage =
+        ref.watch(provider.select((s) => s.documentsErrorMessage));
+    final isLoadingTypes =
+        ref.watch(provider.select((s) => s.isLoadingDocumentTypes));
+    final typesError =
+        ref.watch(provider.select((s) => s.documentTypesErrorMessage));
     final controller = ref.read(provider.notifier);
 
-    if (state.isLoadingDocuments && state.documents.isEmpty) {
+    if (isLoading && !hasLoaded) {
       return const OpenVtsCard(
         padding: EdgeInsets.symmetric(vertical: OpenVtsSpacing.lg),
         child: Center(child: OpenVtsLoader()),
       );
     }
 
-    if (state.sectionErrorMessage != null && state.documents.isEmpty) {
+    if (errorMessage != null && !hasLoaded) {
       return OpenVtsCard(
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: OpenVtsSpacing.md),
           child: OpenVtsErrorView(
-            message: state.sectionErrorMessage!,
-            onRetry: () => controller.loadDocuments(),
+            message: errorMessage.trim().isEmpty
+                ? 'Unable to load documents. Retry.'
+                : errorMessage,
+            onRetry: () => controller.loadDocuments(force: true),
           ),
         ),
       );
     }
 
-    final docs = state.documents;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (isLoading && hasLoaded) const LinearProgressIndicator(minHeight: 2),
         Row(
           children: [
             Expanded(
@@ -113,10 +106,56 @@ class _AdminDetailsDocumentsTabState
         const SizedBox(height: OpenVtsSpacing.xs),
         OpenVtsButton(
           label: 'Upload document',
-          onPressed: state.isUploadingDocument
+          onPressed: (isUploading || isLoading)
               ? null
               : () => _openUploadSheet(context),
         ),
+        if (isLoadingTypes) ...[
+          const SizedBox(height: OpenVtsSpacing.xs),
+          const Row(
+            children: [
+              SizedBox(
+                width: 14,
+                height: 14,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              SizedBox(width: 8),
+              Text(
+                'Loading document types…',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: OpenVtsColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ],
+        if (typesError != null) ...[
+          const SizedBox(height: OpenVtsSpacing.xs),
+          OpenVtsCard(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: OpenVtsSpacing.sm),
+              child: OpenVtsErrorView(
+                message: typesError.trim().isEmpty
+                    ? 'Unable to load document types. Retry.'
+                    : typesError,
+                onRetry: () => controller.loadDocumentTypes(force: true),
+              ),
+            ),
+          ),
+        ],
+        if (errorMessage != null && hasLoaded) ...[
+          const SizedBox(height: OpenVtsSpacing.xs),
+          Text(
+            errorMessage.trim().isEmpty
+                ? 'Unable to refresh documents.'
+                : errorMessage,
+            style: const TextStyle(
+              fontSize: 11,
+              color: OpenVtsColors.error,
+            ),
+          ),
+        ],
         const SizedBox(height: OpenVtsSpacing.sm),
         if (docs.isEmpty)
           const _EmptyState(message: 'No documents uploaded yet.')
@@ -124,6 +163,7 @@ class _AdminDetailsDocumentsTabState
           ListView.separated(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
+            addAutomaticKeepAlives: false,
             itemCount: docs.length,
             separatorBuilder: (_, __) =>
                 const SizedBox(height: OpenVtsSpacing.xs),
@@ -164,6 +204,28 @@ class _AdminDetailsDocumentsTabState
   }
 
   Future<void> _openUploadSheet(BuildContext context) async {
+    final provider = superadminAdminDetailsControllerProvider(widget.adminId);
+    final controller = ref.read(provider.notifier);
+    var state = ref.read(provider);
+
+    if (!state.hasLoadedDocumentTypes && !state.isLoadingDocumentTypes) {
+      await controller.loadDocumentTypes(force: true);
+      if (!context.mounted) return;
+      state = ref.read(provider);
+    }
+
+    final userTypes = state.documentTypes.where((t) => t.isForUser).toList();
+    if (userTypes.isEmpty) {
+      final typeError = state.documentTypesErrorMessage?.trim();
+      ToastHelper.showError(
+        (typeError == null || typeError.isEmpty)
+            ? 'No USER document types configured.'
+            : 'Unable to load document types. Retry.',
+        context: context,
+      );
+      return;
+    }
+
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -182,6 +244,13 @@ class _AdminDetailsDocumentsTabState
     BuildContext context,
     SuperadminAdminDocument doc,
   ) async {
+    final provider = superadminAdminDetailsControllerProvider(widget.adminId);
+    final state = ref.read(provider);
+    if (!state.hasLoadedDocumentTypes && !state.isLoadingDocumentTypes) {
+      await ref.read(provider.notifier).loadDocumentTypes(force: true);
+      if (!context.mounted) return;
+    }
+
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -236,14 +305,13 @@ class _AdminDetailsDocumentsTabState
       ),
     );
     if (confirmed != true || !mounted) return;
-    final provider =
-        superadminAdminDetailsControllerProvider(widget.adminId);
+    final provider = superadminAdminDetailsControllerProvider(widget.adminId);
     final ok = await ref.read(provider.notifier).deleteDocument(doc.id);
     if (!mounted) return;
     if (ok) {
       ToastHelper.showSuccess('Document deleted.', context: this.context);
     } else {
-      final message = ref.read(provider).sectionErrorMessage ??
+      final message = ref.read(provider).documentMutationErrorMessage ??
           'Failed to delete document.';
       ToastHelper.showError(message, context: this.context);
     }
@@ -251,13 +319,27 @@ class _AdminDetailsDocumentsTabState
 }
 
 String? _resolveFileUrl(SuperadminAdminDocument doc) {
-  if (doc.fileUrl.trim().isNotEmpty) return doc.fileUrl.trim();
-  final path = doc.filePath.trim();
+  final directUrl = doc.fileUrl.trim();
+  if (directUrl.isNotEmpty) {
+    final parsed = Uri.tryParse(directUrl);
+    if (parsed != null && parsed.hasScheme && parsed.hasAuthority) {
+      return directUrl;
+    }
+  }
+
+  final path = directUrl.isNotEmpty ? directUrl : doc.filePath.trim();
   if (path.isEmpty) return null;
   if (path.startsWith('http://') || path.startsWith('https://')) return path;
-  final base = AppConfig.apiBaseUrl.replaceAll(RegExp(r'/+$'), '');
-  final rel = path.startsWith('/') ? path : '/$path';
-  return '$base$rel';
+  final normalized = path.startsWith('/') ? path : '/$path';
+
+  if (normalized.startsWith('/uploads') ||
+      normalized.startsWith('/api/uploads')) {
+    final origin = AppConfig.apiOriginBaseUrl().replaceAll(RegExp(r'/+$'), '');
+    return '$origin$normalized';
+  }
+
+  final apiBase = AppConfig.apiBaseUrl.replaceAll(RegExp(r'/+$'), '');
+  return '$apiBase$normalized';
 }
 
 String _fileExtension(SuperadminAdminDocument doc) {
@@ -367,8 +449,7 @@ class _DocumentCard extends StatelessWidget {
                   icon: Icons.calendar_today_outlined,
                   label: 'Added ${fmt.format(created)}',
                 ),
-              if (expiry != null)
-                _ExpiryChip(expiryAt: expiry, formatter: fmt),
+              if (expiry != null) _ExpiryChip(expiryAt: expiry, formatter: fmt),
               _VisibilityChip(isVisible: document.isVisible),
               if (document.tags.isNotEmpty)
                 for (final tag in document.tags.take(3))
@@ -531,7 +612,8 @@ class _VisibilityChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _MetaChip(
-      icon: isVisible ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+      icon:
+          isVisible ? Icons.visibility_outlined : Icons.visibility_off_outlined,
       label: isVisible ? 'Visible' : 'Hidden',
       color: isVisible ? OpenVtsColors.success : OpenVtsColors.textSecondary,
     );
@@ -688,8 +770,7 @@ class _DocumentSheetState extends ConsumerState<_DocumentSheet> {
     if (needsFile) setState(() => _fileError = true);
     if (!formOk || needsFile) return;
 
-    final provider =
-        superadminAdminDetailsControllerProvider(widget.adminId);
+    final provider = superadminAdminDetailsControllerProvider(widget.adminId);
     final controller = ref.read(provider.notifier);
     final request = SuperadminAdminDocumentRequest(
       title: _title.text.trim(),
@@ -719,21 +800,23 @@ class _DocumentSheetState extends ConsumerState<_DocumentSheet> {
       );
       Navigator.of(context).maybePop();
     } else {
-      final message = ref.read(provider).sectionErrorMessage ??
-          (_isEdit ? 'Failed to update document.' : 'Failed to upload document.');
+      final message = ref.read(provider).documentMutationErrorMessage ??
+          (_isEdit
+              ? 'Failed to update document.'
+              : 'Failed to upload document.');
       ToastHelper.showError(message, context: context);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final provider =
-        superadminAdminDetailsControllerProvider(widget.adminId);
-    final state = ref.watch(provider);
-    final isLoading = state.isUploadingDocument;
-    final docTypes = state.documentTypes
-        .where((t) => t.isForUser)
-        .toList(growable: false);
+    final provider = superadminAdminDetailsControllerProvider(widget.adminId);
+    final isLoading = ref.watch(provider.select((s) => s.isUploadingDocument));
+    final docTypes = ref.watch(provider.select(
+      (s) => s.documentTypes.where((t) => t.isForUser).toList(growable: false),
+    ));
+    final isLoadingTypes =
+        ref.watch(provider.select((s) => s.isLoadingDocumentTypes));
     final viewInsets = MediaQuery.of(context).viewInsets;
 
     return Padding(
@@ -762,9 +845,8 @@ class _DocumentSheetState extends ConsumerState<_DocumentSheet> {
                       _DocTypeDropdown(
                         value: _docTypeId,
                         options: docTypes,
-                        isLoading: state.isLoadingDocumentTypes,
-                        onChanged: (next) =>
-                            setState(() => _docTypeId = next),
+                        isLoading: isLoadingTypes,
+                        onChanged: (next) => setState(() => _docTypeId = next),
                         validator: (value) {
                           if (value == null || value.isEmpty) {
                             return 'Document type is required.';
@@ -857,8 +939,55 @@ class _DocTypeDropdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hasValue = value != null &&
-        options.any((o) => o.id == value);
+    final hasValue = value != null && options.any((o) => o.id == value);
+
+    if (options.isEmpty && isLoading) {
+      return const SizedBox(
+        height: 44,
+        child: Center(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                width: 14,
+                height: 14,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              SizedBox(width: 8),
+              Text(
+                'Loading document types…',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: OpenVtsColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (options.isEmpty && !isLoading) {
+      return Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: OpenVtsSpacing.sm,
+          vertical: OpenVtsSpacing.sm,
+        ),
+        decoration: BoxDecoration(
+          color: OpenVtsColors.surface,
+          borderRadius: BorderRadius.circular(OpenVtsRadius.sm),
+          border: Border.all(color: OpenVtsColors.border),
+        ),
+        child: const Text(
+          'No USER document types configured.',
+          style: TextStyle(
+            fontSize: 12,
+            color: OpenVtsColors.textSecondary,
+          ),
+        ),
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -919,7 +1048,7 @@ class _DocTypeDropdown extends StatelessWidget {
                 ),
               )
               .toList(growable: false),
-          onChanged: options.isEmpty ? null : onChanged,
+          onChanged: onChanged,
           validator: validator,
         ),
       ],
@@ -952,8 +1081,7 @@ class _FilePickerField extends StatelessWidget {
     } else {
       label = 'No file selected';
     }
-    final borderColor =
-        showError ? OpenVtsColors.error : OpenVtsColors.border;
+    final borderColor = showError ? OpenVtsColors.error : OpenVtsColors.border;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

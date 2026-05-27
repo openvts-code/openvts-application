@@ -32,6 +32,10 @@ class SuperadminAdminDetailsState {
     required this.activityActionPrefix,
     required this.activityFrom,
     required this.activityTo,
+    required this.hasLoadedCreditLogs,
+    required this.hasLoadedDocuments,
+    required this.hasLoadedDocumentTypes,
+    required this.hasLoadedVehicles,
     required this.isLoadingAdmin,
     required this.isSavingProfile,
     required this.isUpdatingStatus,
@@ -52,6 +56,11 @@ class SuperadminAdminDetailsState {
     required this.isDeletingAdmin,
     required this.errorMessage,
     required this.sectionErrorMessage,
+    required this.creditsErrorMessage,
+    required this.vehiclesErrorMessage,
+    required this.documentsErrorMessage,
+    required this.documentTypesErrorMessage,
+    required this.documentMutationErrorMessage,
   });
 
   SuperadminAdminDetailsState.initial({required this.adminId})
@@ -74,6 +83,10 @@ class SuperadminAdminDetailsState {
         activityActionPrefix = '',
         activityFrom = null,
         activityTo = null,
+        hasLoadedCreditLogs = false,
+        hasLoadedDocuments = false,
+        hasLoadedDocumentTypes = false,
+        hasLoadedVehicles = false,
         isLoadingAdmin = false,
         isSavingProfile = false,
         isUpdatingStatus = false,
@@ -93,7 +106,12 @@ class SuperadminAdminDetailsState {
         isLoadingMoreActivity = false,
         isDeletingAdmin = false,
         errorMessage = null,
-        sectionErrorMessage = null;
+        sectionErrorMessage = null,
+        creditsErrorMessage = null,
+        vehiclesErrorMessage = null,
+        documentsErrorMessage = null,
+        documentTypesErrorMessage = null,
+        documentMutationErrorMessage = null;
 
   static const Object _unset = Object();
 
@@ -117,6 +135,10 @@ class SuperadminAdminDetailsState {
   final String activityActionPrefix;
   final DateTime? activityFrom;
   final DateTime? activityTo;
+  final bool hasLoadedCreditLogs;
+  final bool hasLoadedDocuments;
+  final bool hasLoadedDocumentTypes;
+  final bool hasLoadedVehicles;
   final bool isLoadingAdmin;
   final bool isSavingProfile;
   final bool isUpdatingStatus;
@@ -137,6 +159,11 @@ class SuperadminAdminDetailsState {
   final bool isDeletingAdmin;
   final String? errorMessage;
   final String? sectionErrorMessage;
+  final String? creditsErrorMessage;
+  final String? vehiclesErrorMessage;
+  final String? documentsErrorMessage;
+  final String? documentTypesErrorMessage;
+  final String? documentMutationErrorMessage;
 
   SuperadminAdminDetailsState copyWith({
     Object? admin = _unset,
@@ -158,6 +185,10 @@ class SuperadminAdminDetailsState {
     String? activityActionPrefix,
     Object? activityFrom = _unset,
     Object? activityTo = _unset,
+    bool? hasLoadedCreditLogs,
+    bool? hasLoadedDocuments,
+    bool? hasLoadedDocumentTypes,
+    bool? hasLoadedVehicles,
     bool? isLoadingAdmin,
     bool? isSavingProfile,
     bool? isUpdatingStatus,
@@ -178,10 +209,17 @@ class SuperadminAdminDetailsState {
     bool? isDeletingAdmin,
     Object? errorMessage = _unset,
     Object? sectionErrorMessage = _unset,
+    Object? creditsErrorMessage = _unset,
+    Object? vehiclesErrorMessage = _unset,
+    Object? documentsErrorMessage = _unset,
+    Object? documentTypesErrorMessage = _unset,
+    Object? documentMutationErrorMessage = _unset,
   }) {
     return SuperadminAdminDetailsState(
       adminId: adminId,
-      admin: identical(admin, _unset) ? this.admin : admin as SuperadminAdminDetails?,
+      admin: identical(admin, _unset)
+          ? this.admin
+          : admin as SuperadminAdminDetails?,
       selectedTab: selectedTab ?? this.selectedTab,
       creditLogs: creditLogs ?? this.creditLogs,
       transactions: transactions ?? this.transactions,
@@ -209,8 +247,14 @@ class SuperadminAdminDetailsState {
       activityFrom: identical(activityFrom, _unset)
           ? this.activityFrom
           : activityFrom as DateTime?,
-      activityTo:
-          identical(activityTo, _unset) ? this.activityTo : activityTo as DateTime?,
+      activityTo: identical(activityTo, _unset)
+          ? this.activityTo
+          : activityTo as DateTime?,
+      hasLoadedCreditLogs: hasLoadedCreditLogs ?? this.hasLoadedCreditLogs,
+      hasLoadedDocuments: hasLoadedDocuments ?? this.hasLoadedDocuments,
+      hasLoadedDocumentTypes:
+          hasLoadedDocumentTypes ?? this.hasLoadedDocumentTypes,
+      hasLoadedVehicles: hasLoadedVehicles ?? this.hasLoadedVehicles,
       isLoadingAdmin: isLoadingAdmin ?? this.isLoadingAdmin,
       isSavingProfile: isSavingProfile ?? this.isSavingProfile,
       isUpdatingStatus: isUpdatingStatus ?? this.isUpdatingStatus,
@@ -232,11 +276,28 @@ class SuperadminAdminDetailsState {
       isLoadingMoreActivity:
           isLoadingMoreActivity ?? this.isLoadingMoreActivity,
       isDeletingAdmin: isDeletingAdmin ?? this.isDeletingAdmin,
-      errorMessage:
-          identical(errorMessage, _unset) ? this.errorMessage : errorMessage as String?,
+      errorMessage: identical(errorMessage, _unset)
+          ? this.errorMessage
+          : errorMessage as String?,
       sectionErrorMessage: identical(sectionErrorMessage, _unset)
           ? this.sectionErrorMessage
           : sectionErrorMessage as String?,
+      creditsErrorMessage: identical(creditsErrorMessage, _unset)
+          ? this.creditsErrorMessage
+          : creditsErrorMessage as String?,
+      vehiclesErrorMessage: identical(vehiclesErrorMessage, _unset)
+          ? this.vehiclesErrorMessage
+          : vehiclesErrorMessage as String?,
+      documentsErrorMessage: identical(documentsErrorMessage, _unset)
+          ? this.documentsErrorMessage
+          : documentsErrorMessage as String?,
+      documentTypesErrorMessage: identical(documentTypesErrorMessage, _unset)
+          ? this.documentTypesErrorMessage
+          : documentTypesErrorMessage as String?,
+      documentMutationErrorMessage:
+          identical(documentMutationErrorMessage, _unset)
+              ? this.documentMutationErrorMessage
+              : documentMutationErrorMessage as String?,
     );
   }
 }

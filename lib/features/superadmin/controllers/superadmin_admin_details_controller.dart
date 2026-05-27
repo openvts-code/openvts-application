@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/api/api_exception.dart';
 import '../models/superadmin_admin_details_model.dart';
 import '../models/superadmin_admin_details_state.dart';
 import '../models/superadmin_payments_model.dart';
@@ -65,7 +66,7 @@ class SuperadminAdminDetailsController
       case SuperadminAdminDetailsTab.profile:
         break;
       case SuperadminAdminDetailsTab.creditHistory:
-        if (state.creditLogs.isEmpty && !state.isLoadingCredits) {
+        if (!state.hasLoadedCreditLogs && !state.isLoadingCredits) {
           unawaited(loadCreditLogs());
         }
         break;
@@ -77,15 +78,15 @@ class SuperadminAdminDetailsController
         }
         break;
       case SuperadminAdminDetailsTab.documents:
-        if (state.documents.isEmpty && !state.isLoadingDocuments) {
+        if (!state.hasLoadedDocuments && !state.isLoadingDocuments) {
           unawaited(loadDocuments());
         }
-        if (state.documentTypes.isEmpty && !state.isLoadingDocumentTypes) {
+        if (!state.hasLoadedDocumentTypes && !state.isLoadingDocumentTypes) {
           unawaited(loadDocumentTypes());
         }
         break;
       case SuperadminAdminDetailsTab.vehicles:
-        if (state.vehicles.isEmpty && !state.isLoadingVehicles) {
+        if (!state.hasLoadedVehicles && !state.isLoadingVehicles) {
           unawaited(loadVehicles());
         }
         break;
@@ -95,6 +96,30 @@ class SuperadminAdminDetailsController
         }
         break;
     }
+  }
+
+  // -------------------------------------------------------------------------
+  // Ensure-loaded helpers (idempotent, safe to call from child widgets)
+  // -------------------------------------------------------------------------
+
+  Future<void> ensureCreditLogsLoaded() async {
+    if (state.hasLoadedCreditLogs || state.isLoadingCredits) return;
+    await loadCreditLogs();
+  }
+
+  Future<void> ensureDocumentsLoaded() async {
+    if (state.hasLoadedDocuments || state.isLoadingDocuments) return;
+    await loadDocuments();
+  }
+
+  Future<void> ensureDocumentTypesLoaded() async {
+    if (state.hasLoadedDocumentTypes || state.isLoadingDocumentTypes) return;
+    await loadDocumentTypes();
+  }
+
+  Future<void> ensureVehiclesLoaded() async {
+    if (state.hasLoadedVehicles || state.isLoadingVehicles) return;
+    await loadVehicles();
   }
 
   // -------------------------------------------------------------------------
@@ -223,21 +248,24 @@ class SuperadminAdminDetailsController
   // Credit history tab
   // -------------------------------------------------------------------------
 
-  Future<void> loadCreditLogs() async {
+  Future<void> loadCreditLogs({bool force = false}) async {
+    if (!force && state.hasLoadedCreditLogs) return;
+    if (state.isLoadingCredits) return;
     state = state.copyWith(
       isLoadingCredits: true,
-      sectionErrorMessage: null,
+      creditsErrorMessage: null,
     );
     try {
       final logs = await _detailsService.getCreditLogs(_adminId);
       state = state.copyWith(
         creditLogs: logs,
         isLoadingCredits: false,
+        hasLoadedCreditLogs: true,
       );
     } catch (error) {
       state = state.copyWith(
         isLoadingCredits: false,
-        sectionErrorMessage: _errorMessage(error),
+        creditsErrorMessage: _errorMessage(error),
       );
     }
   }
@@ -245,7 +273,7 @@ class SuperadminAdminDetailsController
   Future<bool> updateCredits(SuperadminCreditUpdateRequest request) async {
     state = state.copyWith(
       isUpdatingCredits: true,
-      sectionErrorMessage: null,
+      creditsErrorMessage: null,
     );
     try {
       await _detailsService.updateCredits(
@@ -254,14 +282,14 @@ class SuperadminAdminDetailsController
       );
       state = state.copyWith(isUpdatingCredits: false);
       await Future.wait<void>(<Future<void>>[
-        loadCreditLogs(),
+        loadCreditLogs(force: true),
         refreshAdmin(),
       ]);
       return true;
     } catch (error) {
       state = state.copyWith(
         isUpdatingCredits: false,
-        sectionErrorMessage: _errorMessage(error),
+        creditsErrorMessage: _errorMessage(error),
       );
       return false;
     }
@@ -367,8 +395,22 @@ class SuperadminAdminDetailsController
       sectionErrorMessage: null,
     );
     try {
-      await _paymentsService.recordManualPayment(request);
-      state = state.copyWith(isRecordingPayment: false);
+      final transaction = await _paymentsService.recordManualPayment(request);
+
+      state = state.copyWith(
+        isRecordingPayment: false,
+        paymentsPage: 1,
+      );
+
+      final optimisticTransactions = _insertTransactionOptimistically(
+        state.transactions,
+        transaction,
+      );
+
+      state = state.copyWith(
+        transactions: optimisticTransactions,
+      );
+
       await Future.wait<void>(<Future<void>>[
         loadPayments(),
         refreshAdmin(),
@@ -383,41 +425,89 @@ class SuperadminAdminDetailsController
     }
   }
 
+  List<SuperadminTransaction> _insertTransactionOptimistically(
+    List<SuperadminTransaction> current,
+    SuperadminTransaction newTransaction,
+  ) {
+    final key = newTransaction.id.isEmpty
+        ? _fallbackTransactionKey(newTransaction)
+        : newTransaction.id;
+
+    final merged = <String, SuperadminTransaction>{
+      key: newTransaction,
+      for (final item in current)
+        if (item.id != newTransaction.id ||
+            (item.id.isEmpty &&
+                _fallbackTransactionKey(item) !=
+                    _fallbackTransactionKey(newTransaction)))
+          (item.id.isEmpty ? _fallbackTransactionKey(item) : item.id): item,
+    };
+
+    final values = merged.values.toList(growable: false)
+      ..sort((left, right) {
+        final leftTime = left.createdAt?.millisecondsSinceEpoch ?? 0;
+        final rightTime = right.createdAt?.millisecondsSinceEpoch ?? 0;
+        return rightTime.compareTo(leftTime);
+      });
+
+    return values;
+  }
+
+  String _fallbackTransactionKey(SuperadminTransaction transaction) {
+    return [
+      transaction.createdAtRaw,
+      transaction.amount,
+      transaction.reference,
+      transaction.providerRef,
+    ].join('|');
+  }
+
   // -------------------------------------------------------------------------
   // Documents tab
   // -------------------------------------------------------------------------
 
-  Future<void> loadDocuments() async {
+  Future<void> loadDocuments({bool force = false}) async {
+    if (!force && state.hasLoadedDocuments) return;
+    if (state.isLoadingDocuments) return;
     state = state.copyWith(
       isLoadingDocuments: true,
-      sectionErrorMessage: null,
+      documentsErrorMessage: null,
     );
     try {
       final docs = await _detailsService.getAdminDocuments(_adminId);
       state = state.copyWith(
         documents: docs,
         isLoadingDocuments: false,
+        hasLoadedDocuments: true,
+        documentsErrorMessage: null,
       );
     } catch (error) {
       state = state.copyWith(
         isLoadingDocuments: false,
-        sectionErrorMessage: _errorMessage(error),
+        documentsErrorMessage: _errorMessage(error),
       );
     }
   }
 
-  Future<void> loadDocumentTypes() async {
-    state = state.copyWith(isLoadingDocumentTypes: true);
+  Future<void> loadDocumentTypes({bool force = false}) async {
+    if (!force && state.hasLoadedDocumentTypes) return;
+    if (state.isLoadingDocumentTypes) return;
+    state = state.copyWith(
+      isLoadingDocumentTypes: true,
+      documentTypesErrorMessage: null,
+    );
     try {
       final types = await _detailsService.getDocumentTypes();
       state = state.copyWith(
         documentTypes: types,
         isLoadingDocumentTypes: false,
+        hasLoadedDocumentTypes: true,
+        documentTypesErrorMessage: null,
       );
     } catch (error) {
       state = state.copyWith(
         isLoadingDocumentTypes: false,
-        sectionErrorMessage: _errorMessage(error),
+        documentTypesErrorMessage: _errorMessage(error),
       );
     }
   }
@@ -425,17 +515,20 @@ class SuperadminAdminDetailsController
   Future<bool> uploadDocument(SuperadminAdminDocumentRequest request) async {
     state = state.copyWith(
       isUploadingDocument: true,
-      sectionErrorMessage: null,
+      documentMutationErrorMessage: null,
     );
     try {
       await _detailsService.uploadAdminDocument(request);
-      state = state.copyWith(isUploadingDocument: false);
-      await loadDocuments();
+      state = state.copyWith(
+        isUploadingDocument: false,
+        documentMutationErrorMessage: null,
+      );
+      await loadDocuments(force: true);
       return true;
     } catch (error) {
       state = state.copyWith(
         isUploadingDocument: false,
-        sectionErrorMessage: _errorMessage(error),
+        documentMutationErrorMessage: _errorMessage(error),
       );
       return false;
     }
@@ -447,20 +540,23 @@ class SuperadminAdminDetailsController
   }) async {
     state = state.copyWith(
       isUploadingDocument: true,
-      sectionErrorMessage: null,
+      documentMutationErrorMessage: null,
     );
     try {
       await _detailsService.updateAdminDocument(
         docId: docId,
         request: request,
       );
-      state = state.copyWith(isUploadingDocument: false);
-      await loadDocuments();
+      state = state.copyWith(
+        isUploadingDocument: false,
+        documentMutationErrorMessage: null,
+      );
+      await loadDocuments(force: true);
       return true;
     } catch (error) {
       state = state.copyWith(
         isUploadingDocument: false,
-        sectionErrorMessage: _errorMessage(error),
+        documentMutationErrorMessage: _errorMessage(error),
       );
       return false;
     }
@@ -469,17 +565,20 @@ class SuperadminAdminDetailsController
   Future<bool> deleteDocument(String docId) async {
     state = state.copyWith(
       isDeletingDocument: true,
-      sectionErrorMessage: null,
+      documentMutationErrorMessage: null,
     );
     try {
       await _detailsService.deleteAdminDocument(docId);
-      state = state.copyWith(isDeletingDocument: false);
-      await loadDocuments();
+      state = state.copyWith(
+        isDeletingDocument: false,
+        documentMutationErrorMessage: null,
+      );
+      await loadDocuments(force: true);
       return true;
     } catch (error) {
       state = state.copyWith(
         isDeletingDocument: false,
-        sectionErrorMessage: _errorMessage(error),
+        documentMutationErrorMessage: _errorMessage(error),
       );
       return false;
     }
@@ -489,21 +588,24 @@ class SuperadminAdminDetailsController
   // Vehicles tab
   // -------------------------------------------------------------------------
 
-  Future<void> loadVehicles() async {
+  Future<void> loadVehicles({bool force = false}) async {
+    if (!force && state.hasLoadedVehicles) return;
+    if (state.isLoadingVehicles) return;
     state = state.copyWith(
       isLoadingVehicles: true,
-      sectionErrorMessage: null,
+      vehiclesErrorMessage: null,
     );
     try {
       final vehicles = await _detailsService.getAdminVehicles(_adminId);
       state = state.copyWith(
         vehicles: vehicles,
         isLoadingVehicles: false,
+        hasLoadedVehicles: true,
       );
     } catch (error) {
       state = state.copyWith(
         isLoadingVehicles: false,
-        sectionErrorMessage: _errorMessage(error),
+        vehiclesErrorMessage: _errorMessage(error),
       );
     }
   }
@@ -540,7 +642,11 @@ class SuperadminAdminDetailsController
   }
 
   Future<void> loadMoreActivity() async {
-    if (!state.activityHasMore || state.isLoadingMoreActivity) return;
+    if (!state.activityHasMore ||
+        state.isLoadingMoreActivity ||
+        state.isLoadingActivity) {
+      return;
+    }
     state = state.copyWith(isLoadingMoreActivity: true);
     try {
       final page = await _detailsService.getAdminActivityLogs(
@@ -596,27 +702,172 @@ class SuperadminAdminDetailsController
     return '$y-$m-$d';
   }
 
-  String _errorMessage(Object error) {
-    if (error is DioException) {
-      final data = error.response?.data;
-      if (data is Map) {
-        final message = data['message'] ?? data['error'] ?? data['detail'];
-        if (message is String && message.trim().isNotEmpty) {
-          return message.trim();
-        }
-        if (message is List && message.isNotEmpty) {
-          return message.join(', ');
+  // Helper: sanitize and limit messages shown to users.
+  String _safeMessage(String? value, String fallback) {
+    if (value == null) return fallback;
+    var msg = value.trim();
+    if (msg.isEmpty) return fallback;
+
+    // Avoid raw 'Instance of' or class dumps
+    if (msg.contains('Instance of')) return fallback;
+
+    // Avoid raw JSON/maps or arrays being displayed directly
+    final t = msg.trim();
+    if ((t.startsWith('{') && t.endsWith('}')) ||
+        (t.startsWith('[') && t.endsWith(']'))) {
+      return fallback;
+    }
+
+    // If looks like a stack trace/multi-line, use the first non-empty line
+    if (msg.contains('\n')) {
+      final lines = msg
+          .split('\n')
+          .map((s) => s.trim())
+          .where((s) => s.isNotEmpty)
+          .toList(growable: false);
+      if (lines.isEmpty) return fallback;
+      // If stack-trace markers exist, prefer the first line only
+      if (lines.length > 1 ||
+          lines.any((l) =>
+              l.contains('package:') ||
+              l.startsWith('#') ||
+              l.contains('Stack trace'))) {
+        msg = lines.first;
+      } else {
+        msg = lines.join(' ');
+      }
+    }
+
+    msg = msg.trim();
+    if (msg.isEmpty) return fallback;
+
+    // Truncate to a safe length
+    const maxLen = 220;
+    if (msg.length > maxLen) msg = '${msg.substring(0, maxLen - 3)}...';
+
+    return msg;
+  }
+
+  dynamic _valueForKeyInsensitive(Map m, String key) {
+    if (m.containsKey(key)) return m[key];
+    final lk = key.toLowerCase();
+    for (final e in m.entries) {
+      if (e.key.toString().toLowerCase() == lk) return e.value;
+    }
+    return null;
+  }
+
+  String? _extractMessageFromDynamic(dynamic value) {
+    if (value == null) return null;
+    if (value is String) {
+      final s = value.trim();
+      return s.isEmpty ? null : s;
+    }
+    if (value is List) {
+      final parts = value
+          .map((e) => e?.toString().trim() ?? '')
+          .where((s) => s.isNotEmpty)
+          .toList(growable: false);
+      if (parts.isNotEmpty) return parts.join(', ');
+      return null;
+    }
+    if (value is Map) {
+      // Check common keys in order of priority
+      final keys = ['message', 'error', 'detail', 'errors'];
+      // If nested envelope under 'data'
+      final dataNode = _valueForKeyInsensitive(value, 'data');
+      if (dataNode != null && dataNode != value) {
+        final nested = _extractMessageFromDynamic(dataNode);
+        if (nested != null && nested.isNotEmpty) return nested;
+      }
+
+      for (final k in keys) {
+        final v = _valueForKeyInsensitive(value, k);
+        if (v != null) {
+          final extracted = _extractMessageFromDynamic(v);
+          if (extracted != null && extracted.isNotEmpty) return extracted;
         }
       }
+
+      // If 'errors' is a map of field->list
+      final errorsNode = _valueForKeyInsensitive(value, 'errors');
+      if (errorsNode is Map) {
+        final parts = <String>[];
+        for (final e in errorsNode.entries) {
+          final v = _extractMessageFromDynamic(e.value);
+          if (v != null && v.isNotEmpty) parts.add(v);
+        }
+        if (parts.isNotEmpty) return parts.join(', ');
+      }
+
+      return null;
+    }
+
+    // Fallback to toString (will be sanitized by _safeMessage)
+    final s = value.toString().trim();
+    return s.isEmpty ? null : s;
+  }
+
+  String _errorMessage(Object error) {
+    const genericFallback = 'Something went wrong. Please try again.';
+
+    // ApiException (highest priority)
+    if (error is ApiException) {
+      final candidates = <String>[];
+      final top = error.message;
+      if (top.trim().isNotEmpty) candidates.add(top.trim());
+      final detailsMsg = _extractMessageFromDynamic(error.details);
+      if (detailsMsg != null && detailsMsg.trim().isNotEmpty) {
+        candidates.add(detailsMsg.trim());
+      }
+      for (final c in candidates) {
+        final safe = _safeMessage(c, '');
+        if (safe.isNotEmpty) return safe;
+      }
+      return genericFallback;
+    }
+
+    // DioException
+    if (error is DioException) {
+      final data = error.response?.data;
+      final dataMsg = _extractMessageFromDynamic(data);
+      if (dataMsg != null && dataMsg.trim().isNotEmpty) {
+        final safe = _safeMessage(dataMsg, '');
+        if (safe.isNotEmpty) return safe;
+      }
       if (error.message != null && error.message!.trim().isNotEmpty) {
-        return error.message!.trim();
+        final safe = _safeMessage(error.message!.trim(), '');
+        if (safe.isNotEmpty) return safe;
       }
       return 'Network error. Please try again.';
     }
+
+    // Common Dart errors
     if (error is ArgumentError) {
-      final message = error.message?.toString();
-      if (message != null && message.trim().isNotEmpty) return message;
+      final msg = error.message?.toString();
+      final safe = _safeMessage(msg, '');
+      if (safe.isNotEmpty) return safe;
     }
-    return error.toString();
+    if (error is FormatException) {
+      final safe = _safeMessage(error.message, '');
+      if (safe.isNotEmpty) return safe;
+    }
+    if (error is StateError) {
+      final safe = _safeMessage(error.message, '');
+      if (safe.isNotEmpty) return safe;
+    }
+
+    // Strings
+    if (error is String) {
+      final safe = _safeMessage(error, '');
+      if (safe.isNotEmpty) return safe;
+    }
+
+    // Generic toString() fallback
+    final raw = error.toString();
+    final safeRaw = _safeMessage(raw, '');
+    if (safeRaw.isNotEmpty) return safeRaw;
+
+    return genericFallback;
   }
 }

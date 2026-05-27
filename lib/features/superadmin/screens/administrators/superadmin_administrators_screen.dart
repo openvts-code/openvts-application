@@ -44,7 +44,7 @@ class _SuperadminAdministratorsScreenState
     );
 
     return OpenVtsPageScaffold(
-      title: 'Administrators',
+      title: 'Admin',
       headerMode: OpenVtsPageHeaderMode.closeable,
       actions: [
         IconButton(
@@ -88,8 +88,7 @@ class _SuperadminAdministratorsScreenState
                   onLogin: (admin) => _handleLogin(context, ref, admin),
                   onOpenDetails: (admin) {
                     context.push(
-                      RoutePaths
-                          .superadminAdministratorDetailsPath(admin.id),
+                      RoutePaths.superadminAdministratorDetailsPath(admin.id),
                       extra: admin,
                     );
                   },
@@ -106,7 +105,6 @@ class _SuperadminAdministratorsScreenState
         ref.read(superadminAdministratorsControllerProvider.notifier);
     final state = ref.read(superadminAdministratorsControllerProvider);
 
-    var selectedRole = state.roleFilter;
     var selectedStatus = state.statusFilter;
 
     await showModalBottomSheet<void>(
@@ -125,23 +123,6 @@ class _SuperadminAdministratorsScreenState
             return _OptionsSheet(
               title: 'Filter administrators',
               sections: [
-                _OptionsSheetSection(
-                  label: 'Role',
-                  child: Wrap(
-                    spacing: OpenVtsSpacing.xs,
-                    runSpacing: OpenVtsSpacing.xs,
-                    children: SuperadminAdministratorRoleFilter.values
-                        .map(
-                          (option) => _ChoiceChip(
-                            label: option.label,
-                            selected: selectedRole == option,
-                            onSelected: () =>
-                                setSheetState(() => selectedRole = option),
-                          ),
-                        )
-                        .toList(growable: false),
-                  ),
-                ),
                 _OptionsSheetSection(
                   label: 'Status',
                   child: Wrap(
@@ -162,14 +143,12 @@ class _SuperadminAdministratorsScreenState
               ],
               primaryActionLabel: 'Apply filters',
               onPrimaryAction: () {
-                controller.setRoleFilter(selectedRole);
                 controller.setStatusFilter(selectedStatus);
                 Navigator.of(sheetContext).pop();
               },
               secondaryActionLabel: 'Reset',
               onSecondaryAction: () {
                 setSheetState(() {
-                  selectedRole = SuperadminAdministratorRoleFilter.all;
                   selectedStatus = SuperadminAdministratorStatusFilter.all;
                 });
               },
@@ -396,8 +375,7 @@ class _AdministratorsBody extends StatelessWidget {
     final filteredCount = state.filteredCount;
     final visible = state.visibleAdministrators;
     final hasActiveFilters =
-        state.roleFilter != SuperadminAdministratorRoleFilter.all ||
-            state.statusFilter != SuperadminAdministratorStatusFilter.all;
+        state.statusFilter != SuperadminAdministratorStatusFilter.all;
 
     return Column(
       children: [
@@ -514,7 +492,7 @@ class _AdministratorsHeaderCard extends StatelessWidget {
           const SizedBox(width: OpenVtsSpacing.sm),
           Expanded(
             child: Text(
-              '$count Administrator${count == 1 ? '' : 's'}',
+              '$count Admin',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w700,
                     letterSpacing: -0.2,
@@ -539,8 +517,7 @@ class _PrimaryCreateButton extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final background =
         isDark ? OpenVtsColors.surfaceElevated : OpenVtsColors.brandInk;
-    final foreground =
-        isDark ? OpenVtsColors.brandInk : OpenVtsColors.white;
+    final foreground = isDark ? OpenVtsColors.brandInk : OpenVtsColors.white;
 
     return ElevatedButton.icon(
       onPressed: onPressed,
@@ -1167,9 +1144,7 @@ class _CardMenu extends StatelessWidget {
           child: Row(
             children: [
               Icon(
-                isActive
-                    ? Icons.toggle_off_outlined
-                    : Icons.toggle_on_outlined,
+                isActive ? Icons.toggle_off_outlined : Icons.toggle_on_outlined,
                 size: 16,
               ),
               const SizedBox(width: OpenVtsSpacing.xs),
@@ -1732,9 +1707,8 @@ class _ChoiceChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final background = selected
-        ? _primaryInkColor(context)
-        : _softSurfaceColor(context);
+    final background =
+        selected ? _primaryInkColor(context) : _softSurfaceColor(context);
     final foreground = selected
         ? Theme.of(context).colorScheme.surface
         : _primaryInkColor(context);

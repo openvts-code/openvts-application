@@ -31,19 +31,6 @@ class _AdminDetailsCreditHistoryTabState
   String _query = '';
 
   @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final provider =
-          superadminAdminDetailsControllerProvider(widget.adminId);
-      final state = ref.read(provider);
-      if (state.creditLogs.isEmpty && !state.isLoadingCredits) {
-        ref.read(provider.notifier).loadCreditLogs();
-      }
-    });
-  }
-
-  @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
@@ -51,55 +38,70 @@ class _AdminDetailsCreditHistoryTabState
 
   @override
   Widget build(BuildContext context) {
-    final provider =
-        superadminAdminDetailsControllerProvider(widget.adminId);
-    final state = ref.watch(provider);
+    final provider = superadminAdminDetailsControllerProvider(widget.adminId);
     final controller = ref.read(provider.notifier);
-    final admin = state.admin;
 
-    if (state.isLoadingCredits && state.creditLogs.isEmpty) {
+    final creditLogs = ref.watch(provider.select((s) => s.creditLogs));
+    final isLoading = ref.watch(provider.select((s) => s.isLoadingCredits));
+    final hasLoaded = ref.watch(provider.select((s) => s.hasLoadedCreditLogs));
+    final isUpdating = ref.watch(provider.select((s) => s.isUpdatingCredits));
+    final errorMessage =
+        ref.watch(provider.select((s) => s.creditsErrorMessage));
+    final currentCredits =
+        ref.watch(provider.select((s) => s.admin?.credits ?? 0));
+
+    if (isLoading && !hasLoaded) {
       return const OpenVtsCard(
         padding: EdgeInsets.symmetric(vertical: OpenVtsSpacing.lg),
         child: Center(child: OpenVtsLoader()),
       );
     }
 
-    if (state.sectionErrorMessage != null && state.creditLogs.isEmpty) {
+    if (errorMessage != null && !hasLoaded) {
       return OpenVtsCard(
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: OpenVtsSpacing.md),
           child: OpenVtsErrorView(
-            message: state.sectionErrorMessage!,
-            onRetry: controller.loadCreditLogs,
+            message: errorMessage,
+            onRetry: () => controller.loadCreditLogs(force: true),
           ),
         ),
       );
     }
 
-    final currentCredits = admin?.credits ?? 0;
-    final logs = state.creditLogs;
-    final enriched = _computeBalances(logs, currentCredits);
+    final enriched = _computeBalances(creditLogs, currentCredits);
     final filtered = _applyFilter(enriched, _query);
 
-    final addedCount = logs
+    final addedCount = creditLogs
         .where((l) => l.activity == SuperadminCreditActivity.assign)
         .length;
-    final deductedCount = logs
+    final deductedCount = creditLogs
         .where((l) => l.activity == SuperadminCreditActivity.deduct)
         .length;
+
+    final isRefreshing = isLoading && hasLoaded;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (isRefreshing)
+          const ClipRRect(
+            borderRadius: BorderRadius.all(Radius.circular(2)),
+            child: LinearProgressIndicator(
+              minHeight: 2,
+              color: OpenVtsColors.brandInk,
+              backgroundColor: OpenVtsColors.surface,
+            ),
+          ),
         _SummaryGrid(
           currentCredits: currentCredits,
-          totalLogs: logs.length,
+          totalLogs: creditLogs.length,
           addedCount: addedCount,
           deductedCount: deductedCount,
         ),
         const SizedBox(height: OpenVtsSpacing.sm),
         _ActionRow(
-          isBusy: state.isUpdatingCredits,
+          isBusy: isUpdating || isRefreshing,
           currentCredits: currentCredits,
           onAdd: () => _openAssignSheet(
             context: context,
@@ -120,7 +122,18 @@ class _AdminDetailsCreditHistoryTabState
           onChanged: (value) => setState(() => _query = value.trim()),
         ),
         const SizedBox(height: OpenVtsSpacing.sm),
-        if (logs.isEmpty)
+        if (errorMessage != null && hasLoaded)
+          Padding(
+            padding: const EdgeInsets.only(bottom: OpenVtsSpacing.xs),
+            child: Text(
+              errorMessage,
+              style: const TextStyle(
+                fontSize: 11,
+                color: OpenVtsColors.error,
+              ),
+            ),
+          ),
+        if (creditLogs.isEmpty)
           const _EmptyState(message: 'No credit history yet.')
         else if (filtered.isEmpty)
           const _EmptyState(message: 'No matches for your search.')
@@ -128,6 +141,7 @@ class _AdminDetailsCreditHistoryTabState
           ListView.separated(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
+            addAutomaticKeepAlives: false,
             itemCount: filtered.length,
             separatorBuilder: (_, __) =>
                 const SizedBox(height: OpenVtsSpacing.xs),
@@ -435,9 +449,8 @@ class _CreditLogCard extends StatelessWidget {
         isAdd ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded;
     final sign = isAdd ? '+' : '−';
     const fmt = DateTimeFormatter();
-    final dateLabel = log.createdAt != null
-        ? fmt.formatDateTime(log.createdAt!)
-        : '—';
+    final dateLabel =
+        log.createdAt != null ? fmt.formatDateTime(log.createdAt!) : '—';
 
     return OpenVtsCard(
       padding: const EdgeInsets.fromLTRB(
@@ -614,8 +627,7 @@ class _AssignCreditsSheetState extends ConsumerState<_AssignCreditsSheet> {
 
   Future<void> _submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
-    final provider =
-        superadminAdminDetailsControllerProvider(widget.adminId);
+    final provider = superadminAdminDetailsControllerProvider(widget.adminId);
     final controller = ref.read(provider.notifier);
     final ok = await controller.updateCredits(
       SuperadminCreditUpdateRequest(
@@ -632,15 +644,14 @@ class _AssignCreditsSheetState extends ConsumerState<_AssignCreditsSheet> {
       Navigator.of(context).maybePop();
     } else {
       final message =
-          ref.read(provider).sectionErrorMessage ?? 'Failed to update credits.';
+          ref.read(provider).creditsErrorMessage ?? 'Failed to update credits.';
       ToastHelper.showError(message, context: context);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final provider =
-        superadminAdminDetailsControllerProvider(widget.adminId);
+    final provider = superadminAdminDetailsControllerProvider(widget.adminId);
     final isLoading = ref.watch(
       provider.select((s) => s.isUpdatingCredits),
     );
@@ -846,4 +857,3 @@ class _CreditSheetFooter extends StatelessWidget {
     );
   }
 }
-

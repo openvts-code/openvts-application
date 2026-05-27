@@ -223,13 +223,39 @@ class SuperadminPaymentsController
     try {
       final transaction = await _service.recordManualPayment(request);
 
+      final needsRangeAdjustment = _shouldAdjustDateRange();
+      final targetRangePreset = needsRangeAdjustment
+          ? SuperadminPaymentsRangePreset.thisMonth
+          : state.rangePreset;
+
       state = state.copyWith(
         isRecordingPayment: false,
         refreshKey: _newRefreshKey(),
+        page: 1,
+        selectedAdminId: request.adminId,
+        selectedStatus: null,
+        searchQuery: '',
+        rangePreset: targetRangePreset,
+        customFrom: targetRangePreset == SuperadminPaymentsRangePreset.custom
+            ? state.customFrom
+            : null,
+        customTo: targetRangePreset == SuperadminPaymentsRangePreset.custom
+            ? state.customTo
+            : null,
+      );
+
+      final optimisticTransactions = _insertTransactionOptimistically(
+        state.transactions,
+        transaction,
+      );
+
+      state = state.copyWith(
+        transactions: optimisticTransactions,
+        total: state.total + 1,
       );
 
       await Future.wait<void>([
-        loadTransactions(),
+        _loadTransactions(targetPage: 1, append: false),
         loadAnalytics(),
       ]);
 
@@ -241,6 +267,55 @@ class SuperadminPaymentsController
       );
       rethrow;
     }
+  }
+
+  bool _shouldAdjustDateRange() {
+    if (state.rangePreset != SuperadminPaymentsRangePreset.custom) {
+      return false;
+    }
+
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final customFrom = state.customFrom;
+    final customTo = state.customTo;
+
+    if (customFrom != null && today.isBefore(customFrom)) {
+      return true;
+    }
+
+    if (customTo != null && today.isAfter(customTo)) {
+      return true;
+    }
+
+    return false;
+  }
+
+  List<SuperadminTransaction> _insertTransactionOptimistically(
+    List<SuperadminTransaction> current,
+    SuperadminTransaction newTransaction,
+  ) {
+    final key = newTransaction.id.isEmpty
+        ? _fallbackTransactionKey(newTransaction)
+        : newTransaction.id;
+
+    final merged = <String, SuperadminTransaction>{
+      key: newTransaction,
+      for (final item in current)
+        if (item.id != newTransaction.id ||
+            (item.id.isEmpty &&
+                _fallbackTransactionKey(item) !=
+                    _fallbackTransactionKey(newTransaction)))
+          (item.id.isEmpty ? _fallbackTransactionKey(item) : item.id): item,
+    };
+
+    final values = merged.values.toList(growable: false)
+      ..sort((left, right) {
+        final leftTime = left.createdAt?.millisecondsSinceEpoch ?? 0;
+        final rightTime = right.createdAt?.millisecondsSinceEpoch ?? 0;
+        return rightTime.compareTo(leftTime);
+      });
+
+    return values;
   }
 
   Future<void> clearFilters() async {

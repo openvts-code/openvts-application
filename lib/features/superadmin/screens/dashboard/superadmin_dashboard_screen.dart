@@ -1760,13 +1760,13 @@ class _TransactionsSection extends StatelessWidget {
     return _SectionCard(
       title: 'Transactions',
       icon: Icons.credit_card_outlined,
-      trailing: Text(
-        'View All',
-        style: OpenVtsTypography.meta.copyWith(
-          color: OpenVtsColors.textSecondary,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
+      // trailing: Text(
+      //   'View All',
+      //   style: OpenVtsTypography.meta.copyWith(
+      //     color: OpenVtsColors.textSecondary,
+      //     fontWeight: FontWeight.w700,
+      //   ),
+      // ),
       child: transactions.isEmpty
           ? const Padding(
               padding: EdgeInsets.all(OpenVtsSpacing.lg),

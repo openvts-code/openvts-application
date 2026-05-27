@@ -7,9 +7,7 @@ import '../../../../core/theme/open_vts_spacing.dart';
 import '../../../../shared/helpers/toast_helper.dart';
 import '../../../../shared/widgets/open_vts_card.dart';
 import '../../../../shared/widgets/open_vts_error_view.dart';
-import '../../../../shared/widgets/open_vts_loader.dart';
 import '../../../../shared/widgets/open_vts_page_scaffold.dart';
-import '../../controllers/superadmin_admin_details_controller.dart';
 import '../../controllers/superadmin_providers.dart';
 import '../../models/superadmin_admin_details_model.dart';
 import '../../models/superadmin_admin_details_state.dart';
@@ -34,13 +32,25 @@ class SuperadminAdminDetailsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final provider = superadminAdminDetailsControllerProvider(adminId);
-    final state = ref.watch(provider);
-    final controller = ref.read(provider.notifier);
 
-    final isActive = state.admin?.isActive ?? initialAdmin?.isActive ?? false;
+    final adminName = ref.watch(provider.select((s) => s.admin?.name ?? ''));
+    final isActive = ref.watch(
+      provider
+          .select((s) => s.admin?.isActive ?? initialAdmin?.isActive ?? false),
+    );
+    final isUpdatingStatus =
+        ref.watch(provider.select((s) => s.isUpdatingStatus));
+    final isDeletingAdmin =
+        ref.watch(provider.select((s) => s.isDeletingAdmin));
+
+    final title = adminName.trim().isNotEmpty
+        ? adminName
+        : (initialAdmin?.name.trim().isNotEmpty == true
+            ? initialAdmin!.name
+            : 'Administrator');
 
     return OpenVtsPageScaffold(
-      title: _resolveTitle(state),
+      title: title,
       headerMode: OpenVtsPageHeaderMode.closeable,
       onClose: () => Navigator.of(context).maybePop(),
       actions: [
@@ -48,62 +58,37 @@ class SuperadminAdminDetailsScreen extends ConsumerWidget {
         const SizedBox(width: 4),
         _HeaderMenu(
           isActive: isActive,
-          isUpdatingStatus: state.isUpdatingStatus,
-          isDeleting: state.isDeletingAdmin,
-          onRefresh: () => _refreshAll(controller, state),
-          onToggleStatus: () => _handleToggleStatus(
-            context,
-            controller,
-            state,
-            initialAdmin,
-          ),
-          onDelete: () => _handleDelete(
-            context,
-            controller,
-            state,
-            initialAdmin,
-          ),
+          isUpdatingStatus: isUpdatingStatus,
+          isDeleting: isDeletingAdmin,
+          onRefresh: () => _refreshAll(ref),
+          onToggleStatus: () => _handleToggleStatus(context, ref),
+          onDelete: () => _handleDelete(context, ref),
         ),
         const SizedBox(width: 4),
       ],
-      body: _Body(
-        state: state,
-        controller: controller,
-        initialAdmin: initialAdmin,
-        onRefresh: () => _refreshAll(controller, state),
-      ),
+      body: _Body(adminId: adminId, initialAdmin: initialAdmin),
     );
   }
 
-  String _resolveTitle(SuperadminAdminDetailsState state) {
-    final admin = state.admin;
-    if (admin != null && admin.name.trim().isNotEmpty) {
-      return admin.name;
-    }
-    final fallback = initialAdmin?.name.trim();
-    if (fallback != null && fallback.isNotEmpty) return fallback;
-    return 'Administrator';
-  }
-
-  Future<void> _refreshAll(
-    SuperadminAdminDetailsController controller,
-    SuperadminAdminDetailsState state,
-  ) async {
+  Future<void> _refreshAll(WidgetRef ref) async {
+    final provider = superadminAdminDetailsControllerProvider(adminId);
+    final controller = ref.read(provider.notifier);
+    final selectedTab = ref.read(provider.select((s) => s.selectedTab));
     await controller.refreshAdmin();
-    switch (state.selectedTab) {
+    switch (selectedTab) {
       case SuperadminAdminDetailsTab.profile:
         break;
       case SuperadminAdminDetailsTab.creditHistory:
-        await controller.loadCreditLogs();
+        await controller.loadCreditLogs(force: true);
         break;
       case SuperadminAdminDetailsTab.payments:
         await controller.loadPayments();
         break;
       case SuperadminAdminDetailsTab.documents:
-        await controller.loadDocuments();
+        await controller.loadDocuments(force: true);
         break;
       case SuperadminAdminDetailsTab.vehicles:
-        await controller.loadVehicles();
+        await controller.loadVehicles(force: true);
         break;
       case SuperadminAdminDetailsTab.adminActivity:
         await controller.loadActivity();
@@ -113,12 +98,14 @@ class SuperadminAdminDetailsScreen extends ConsumerWidget {
 
   Future<void> _handleToggleStatus(
     BuildContext context,
-    SuperadminAdminDetailsController controller,
-    SuperadminAdminDetailsState state,
-    SuperadminAdministrator? fallback,
+    WidgetRef ref,
   ) async {
-    final currentlyActive =
-        state.admin?.isActive ?? fallback?.isActive ?? false;
+    final provider = superadminAdminDetailsControllerProvider(adminId);
+    final controller = ref.read(provider.notifier);
+    final currentlyActive = ref.read(
+      provider
+          .select((s) => s.admin?.isActive ?? initialAdmin?.isActive ?? false),
+    );
     final next = !currentlyActive;
     final ok = await controller.updateStatus(next);
     if (!context.mounted) return;
@@ -128,8 +115,9 @@ class SuperadminAdminDetailsScreen extends ConsumerWidget {
         context: context,
       );
     } else {
+      final err = ref.read(provider.select((s) => s.sectionErrorMessage));
       ToastHelper.showError(
-        state.sectionErrorMessage ?? 'Failed to update status.',
+        err ?? 'Failed to update status.',
         context: context,
       );
     }
@@ -137,14 +125,15 @@ class SuperadminAdminDetailsScreen extends ConsumerWidget {
 
   Future<void> _handleDelete(
     BuildContext context,
-    SuperadminAdminDetailsController controller,
-    SuperadminAdminDetailsState state,
-    SuperadminAdministrator? fallback,
+    WidgetRef ref,
   ) async {
-    final name = state.admin?.name.trim().isNotEmpty == true
-        ? state.admin!.name
-        : (fallback?.name.trim().isNotEmpty == true
-            ? fallback!.name
+    final provider = superadminAdminDetailsControllerProvider(adminId);
+    final controller = ref.read(provider.notifier);
+    final adminNameNow = ref.read(provider.select((s) => s.admin?.name ?? ''));
+    final name = adminNameNow.trim().isNotEmpty
+        ? adminNameNow
+        : (initialAdmin?.name.trim().isNotEmpty == true
+            ? initialAdmin!.name
             : 'this administrator');
 
     final confirmed = await showDialog<bool>(
@@ -181,8 +170,9 @@ class SuperadminAdminDetailsScreen extends ConsumerWidget {
       ToastHelper.showSuccess('$name deleted.', context: context);
       Navigator.of(context).maybePop();
     } else {
+      final err = ref.read(provider.select((s) => s.sectionErrorMessage));
       ToastHelper.showError(
-        state.sectionErrorMessage ?? 'Failed to delete administrator.',
+        err ?? 'Failed to delete administrator.',
         context: context,
       );
     }
@@ -275,9 +265,8 @@ class _HeaderMenu extends StatelessWidget {
           height: 40,
           enabled: !isUpdatingStatus,
           child: _MenuRow(
-            icon: isActive
-                ? Icons.toggle_off_outlined
-                : Icons.toggle_on_outlined,
+            icon:
+                isActive ? Icons.toggle_off_outlined : Icons.toggle_on_outlined,
             label: isActive ? 'Deactivate' : 'Activate',
           ),
         ),
@@ -333,40 +322,60 @@ class _MenuRow extends StatelessWidget {
 // Body
 // ---------------------------------------------------------------------------
 
-class _Body extends StatelessWidget {
+class _Body extends ConsumerWidget {
   const _Body({
-    required this.state,
-    required this.controller,
+    required this.adminId,
     required this.initialAdmin,
-    required this.onRefresh,
   });
 
-  final SuperadminAdminDetailsState state;
-  final SuperadminAdminDetailsController controller;
+  final String adminId;
   final SuperadminAdministrator? initialAdmin;
-  final Future<void> Function() onRefresh;
 
   @override
-  Widget build(BuildContext context) {
-    final admin = state.admin;
-    final isInitialLoad = state.isLoadingAdmin && admin == null;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final provider = superadminAdminDetailsControllerProvider(adminId);
+    final controller = ref.read(provider.notifier);
+
+    final admin = ref.watch(provider.select((s) => s.admin));
+    final isLoadingAdmin = ref.watch(provider.select((s) => s.isLoadingAdmin));
+    final errorMessage = ref.watch(provider.select((s) => s.errorMessage));
+    final selectedTab = ref.watch(provider.select((s) => s.selectedTab));
+
+    final isInitialLoad = isLoadingAdmin && admin == null;
 
     if (isInitialLoad && initialAdmin == null) {
       return const _SummarySkeleton();
     }
 
-    if (state.errorMessage != null && admin == null) {
+    if (errorMessage != null && admin == null) {
       return Padding(
         padding: const EdgeInsets.all(OpenVtsSpacing.md),
         child: OpenVtsErrorView(
-          message: state.errorMessage!,
+          message: errorMessage,
           onRetry: controller.refreshAdmin,
         ),
       );
     }
 
     return RefreshIndicator(
-      onRefresh: onRefresh,
+      onRefresh: () async {
+        await controller.refreshAdmin();
+        final tab = ref.read(provider.select((s) => s.selectedTab));
+        switch (tab) {
+          case SuperadminAdminDetailsTab.profile:
+            break;
+          case SuperadminAdminDetailsTab.creditHistory:
+            await controller.loadCreditLogs(force: true);
+          case SuperadminAdminDetailsTab.payments:
+            await controller.loadPayments();
+          case SuperadminAdminDetailsTab.documents:
+            await controller.loadDocuments(force: true);
+          case SuperadminAdminDetailsTab.vehicles:
+            await controller.loadVehicles(force: true);
+          case SuperadminAdminDetailsTab.adminActivity:
+            await controller.loadActivity();
+        }
+      },
       child: ListView(
         padding: const EdgeInsets.all(OpenVtsSpacing.sm),
         physics: const AlwaysScrollableScrollPhysics(),
@@ -374,14 +383,13 @@ class _Body extends StatelessWidget {
           _SummaryCard(admin: admin, fallback: initialAdmin),
           const SizedBox(height: OpenVtsSpacing.sm),
           _TabChips(
-            selected: state.selectedTab,
+            selected: selectedTab,
             onSelect: controller.selectTab,
           ),
           const SizedBox(height: OpenVtsSpacing.sm),
           _TabContent(
-            adminId: state.adminId,
-            state: state,
-            onRetry: onRefresh,
+            adminId: adminId,
+            selectedTab: selectedTab,
           ),
           const SizedBox(height: OpenVtsSpacing.lg),
         ],
@@ -503,8 +511,7 @@ class _SummaryCard extends StatelessWidget {
             const SizedBox(height: OpenVtsSpacing.sm),
             if (email.isNotEmpty)
               _ContactLine(icon: Icons.mail_outline_rounded, text: email),
-            if (email.isNotEmpty && phone.isNotEmpty)
-              const SizedBox(height: 4),
+            if (email.isNotEmpty && phone.isNotEmpty) const SizedBox(height: 4),
             if (phone.isNotEmpty)
               _ContactLine(icon: Icons.phone_outlined, text: phone),
           ],
@@ -746,9 +753,8 @@ class _TabChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg = isSelected
-        ? OpenVtsColors.brandInk
-        : OpenVtsColors.surfaceElevated;
+    final bg =
+        isSelected ? OpenVtsColors.brandInk : OpenVtsColors.surfaceElevated;
     final fg = isSelected ? OpenVtsColors.white : OpenVtsColors.textPrimary;
     return Material(
       color: bg,
@@ -795,112 +801,55 @@ class _TabChip extends StatelessWidget {
 class _TabContent extends StatelessWidget {
   const _TabContent({
     required this.adminId,
-    required this.state,
-    required this.onRetry,
+    required this.selectedTab,
   });
 
   final String adminId;
-  final SuperadminAdminDetailsState state;
-  final Future<void> Function() onRetry;
+  final SuperadminAdminDetailsTab selectedTab;
 
   @override
   Widget build(BuildContext context) {
-    if (_isTabLoading(state)) {
-      return const OpenVtsCard(
-        padding: EdgeInsets.symmetric(vertical: OpenVtsSpacing.lg),
-        child: Center(child: OpenVtsLoader()),
-      );
-    }
-
-    if (state.sectionErrorMessage != null &&
-        state.selectedTab != SuperadminAdminDetailsTab.profile &&
-        state.selectedTab != SuperadminAdminDetailsTab.creditHistory &&
-        state.selectedTab != SuperadminAdminDetailsTab.payments &&
-        state.selectedTab != SuperadminAdminDetailsTab.documents &&
-        state.selectedTab != SuperadminAdminDetailsTab.vehicles &&
-        state.selectedTab != SuperadminAdminDetailsTab.adminActivity) {
-      return OpenVtsCard(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: OpenVtsSpacing.md),
-          child: OpenVtsErrorView(
-            message: state.sectionErrorMessage!,
-            onRetry: () => onRetry(),
-          ),
-        ),
-      );
-    }
-
-    if (state.selectedTab == SuperadminAdminDetailsTab.profile) {
-      return AdminDetailsProfileTab(adminId: adminId);
-    }
-
-    if (state.selectedTab == SuperadminAdminDetailsTab.creditHistory) {
-      return AdminDetailsCreditHistoryTab(adminId: adminId);
-    }
-
-    if (state.selectedTab == SuperadminAdminDetailsTab.payments) {
-      return AdminDetailsPaymentsTab(adminId: adminId);
-    }
-
-    if (state.selectedTab == SuperadminAdminDetailsTab.documents) {
-      return AdminDetailsDocumentsTab(adminId: adminId);
-    }
-
-    if (state.selectedTab == SuperadminAdminDetailsTab.vehicles) {
-      return AdminDetailsVehiclesTab(adminId: adminId);
-    }
-
-    if (state.selectedTab == SuperadminAdminDetailsTab.adminActivity) {
-      return AdminDetailsActivityTab(adminId: adminId);
-    }
-
-    return OpenVtsCard(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: OpenVtsSpacing.lg),
-        child: Center(
-          child: Text(
-            '${_label(state.selectedTab)} — coming soon',
-            style: const TextStyle(
-              fontSize: 12,
-              color: OpenVtsColors.textSecondary,
-            ),
-          ),
-        ),
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 120),
+      child: KeyedSubtree(
+        key: ValueKey<SuperadminAdminDetailsTab>(selectedTab),
+        child: _buildTab(selectedTab),
       ),
     );
   }
 
-  bool _isTabLoading(SuperadminAdminDetailsState state) {
-    switch (state.selectedTab) {
-      case SuperadminAdminDetailsTab.profile:
-        return false;
-      case SuperadminAdminDetailsTab.creditHistory:
-        return state.isLoadingCredits;
-      case SuperadminAdminDetailsTab.payments:
-        return state.isLoadingPayments;
-      case SuperadminAdminDetailsTab.documents:
-        return state.isLoadingDocuments;
-      case SuperadminAdminDetailsTab.vehicles:
-        return state.isLoadingVehicles;
-      case SuperadminAdminDetailsTab.adminActivity:
-        return state.isLoadingActivity;
-    }
-  }
-
-  String _label(SuperadminAdminDetailsTab tab) {
+  Widget _buildTab(SuperadminAdminDetailsTab tab) {
     switch (tab) {
       case SuperadminAdminDetailsTab.profile:
-        return 'Profile';
+        return AdminDetailsProfileTab(
+          key: const PageStorageKey('admin_details_profile'),
+          adminId: adminId,
+        );
       case SuperadminAdminDetailsTab.creditHistory:
-        return 'Credit history';
+        return AdminDetailsCreditHistoryTab(
+          key: const PageStorageKey('admin_details_credits'),
+          adminId: adminId,
+        );
       case SuperadminAdminDetailsTab.payments:
-        return 'Payments';
+        return AdminDetailsPaymentsTab(
+          key: const PageStorageKey('admin_details_payments'),
+          adminId: adminId,
+        );
       case SuperadminAdminDetailsTab.documents:
-        return 'Documents';
+        return AdminDetailsDocumentsTab(
+          key: const PageStorageKey('admin_details_documents'),
+          adminId: adminId,
+        );
       case SuperadminAdminDetailsTab.vehicles:
-        return 'Vehicles';
+        return AdminDetailsVehiclesTab(
+          key: const PageStorageKey('admin_details_vehicles'),
+          adminId: adminId,
+        );
       case SuperadminAdminDetailsTab.adminActivity:
-        return 'Activity';
+        return AdminDetailsActivityTab(
+          key: const PageStorageKey('admin_details_activity'),
+          adminId: adminId,
+        );
     }
   }
 }

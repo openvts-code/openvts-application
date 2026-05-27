@@ -232,36 +232,35 @@ class _PaymentsHeaderCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return OpenVtsCard(
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   'Payments',
-                  style: OpenVtsTypography.titleLarge.copyWith(
+                  style: OpenVtsTypography.titleMedium.copyWith(
                     color: OpenVtsColors.textPrimary,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
-                const SizedBox(height: OpenVtsSpacing.xxs),
+                const SizedBox(height: 2),
                 Text(
-                  'Transactions, revenue, and manual payment records',
-                  style: OpenVtsTypography.body.copyWith(
-                    color: OpenVtsColors.textSecondary,
+                  'Transactions and revenue',
+                  style: OpenVtsTypography.meta.copyWith(
+                    color: OpenVtsColors.textTertiary,
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(width: OpenVtsSpacing.sm),
-          SizedBox(
-            width: 152,
-            child: OpenVtsButton(
-              label: 'Record Payment',
-              trailingIcon: Icons.add_rounded,
-              onPressed: onRecordPressed,
-            ),
+          const SizedBox(width: OpenVtsSpacing.xs),
+          OpenVtsButton(
+            label: 'Record Payment',
+            trailingIcon: Icons.add_rounded,
+            onPressed: onRecordPressed,
           ),
         ],
       ),
