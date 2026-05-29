@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/api_exception.dart';
 import '../models/superadmin_admin_details_model.dart';
 import '../models/superadmin_admin_details_state.dart';
+import '../models/superadmin_administrator_model.dart';
 import '../models/superadmin_payments_model.dart';
 import '../services/superadmin_admin_details_service.dart';
 import '../services/superadmin_payments_service.dart';
@@ -16,6 +17,7 @@ class SuperadminAdminDetailsController
     required String adminId,
     required SuperadminAdminDetailsService detailsService,
     required SuperadminPaymentsService paymentsService,
+    required this.onAdminStatusChanged,
   })  : _adminId = adminId,
         _detailsService = detailsService,
         _paymentsService = paymentsService,
@@ -25,12 +27,47 @@ class SuperadminAdminDetailsController
   final SuperadminAdminDetailsService _detailsService;
   final SuperadminPaymentsService _paymentsService;
 
+  /// Callback to sync status changes with the administrators list.
+  final void Function(String adminId, bool isActive)? onAdminStatusChanged;
+
   // -------------------------------------------------------------------------
   // Lifecycle
   // -------------------------------------------------------------------------
 
   Future<void> loadInitial() async {
     await refreshAdmin();
+  }
+
+  /// Seed initial vehicle count from the administrators list item.
+  /// Call this from the screen when initialAdmin is available.
+  void seedInitialVehicleCount(int? count) {
+    if (count != null && count > 0 && state.vehicleCount == null) {
+      state = state.copyWith(vehicleCount: count);
+    }
+  }
+
+  /// Seed initialAdmin from the administrators list item.
+  /// Call this from the screen when initialAdmin is available.
+  void seedInitialAdmin(SuperadminAdministrator? admin) {
+    if (admin != null && state.initialAdmin == null) {
+      final resolvedLastLogin = admin.lastLoginAt;
+      state = state.copyWith(
+        initialAdmin: admin,
+        resolvedLastLogin: resolvedLastLogin,
+      );
+    }
+  }
+
+  /// Seed initial data from the administrators list item.
+  /// Call this from the screen when initialAdmin is available.
+  void seedInitialData({int? vehicleCount, DateTime? lastLogin}) {
+    if (vehicleCount != null && vehicleCount > 0 && state.vehicleCount == null) {
+      state = state.copyWith(vehicleCount: vehicleCount);
+    }
+
+    if (lastLogin != null && state.resolvedLastLogin == null) {
+      state = state.copyWith(resolvedLastLogin: lastLogin);
+    }
   }
 
   Future<void> refreshAdmin() async {
@@ -40,8 +77,39 @@ class SuperadminAdminDetailsController
     );
     try {
       final admin = await _detailsService.getAdminDetails(_adminId);
+
+      // Preserve vehicle count if detail API doesn't return it
+      final preservedVehicleCount = state.vehicleCount;
+      final preservedAdminCount = state.admin?.totalVehicles;
+      final preservedLastLogin = state.admin?.recentLogin;
+      final resolvedLastLoginFromState = state.resolvedLastLogin;
+
+      var updatedAdmin = admin;
+
+      // Preserve vehicle count if missing
+      if (admin.totalVehicles < 0) {
+        final knownCount = preservedVehicleCount ??
+                          (preservedAdminCount != null && preservedAdminCount >= 0
+                              ? preservedAdminCount
+                              : null);
+        if (knownCount != null) {
+          updatedAdmin = updatedAdmin.copyWith(totalVehicles: knownCount);
+        }
+      }
+
+      // Preserve last login if missing: use detail API value, or fallback to previous, or use resolved value
+      if (admin.recentLogin == null) {
+        final knownLastLogin = preservedLastLogin ?? resolvedLastLoginFromState;
+        if (knownLastLogin != null) {
+          updatedAdmin = updatedAdmin.copyWith(recentLogin: knownLastLogin);
+        }
+      } else {
+        // Update resolved last login when detail API provides it
+        state = state.copyWith(resolvedLastLogin: admin.recentLogin);
+      }
+
       state = state.copyWith(
-        admin: admin,
+        admin: updatedAdmin,
         isLoadingAdmin: false,
       );
     } catch (error) {
@@ -122,6 +190,16 @@ class SuperadminAdminDetailsController
     await loadVehicles();
   }
 
+  Future<void> ensureVehicleCountLoaded() async {
+    if (state.vehicleCount != null) return;
+    if (state.hasLoadedVehicles) {
+      state = state.copyWith(vehicleCount: state.vehicles.length);
+      return;
+    }
+    if (state.isLoadingVehicles) return;
+    await loadVehicles();
+  }
+
   // -------------------------------------------------------------------------
   // Profile tab
   // -------------------------------------------------------------------------
@@ -151,23 +229,60 @@ class SuperadminAdminDetailsController
   }
 
   Future<bool> updateStatus(bool isActive) async {
+    final previousValue = state.admin?.isActive;
+
     state = state.copyWith(
       isUpdatingStatus: true,
       sectionErrorMessage: null,
     );
+
     try {
       await _detailsService.setAdminActive(
         adminId: _adminId,
         isActive: isActive,
       );
-      final admin = state.admin?.copyWith(isActive: isActive);
+
+      // Optimistic update
       state = state.copyWith(
-        admin: admin,
+        admin: state.admin?.copyWith(isActive: isActive),
         isUpdatingStatus: false,
       );
+
+      // Sync with server; preserve the toggled status if backend response
+      // omits or returns stale isActive field.
+      try {
+        final fresh = await _detailsService.getAdminDetails(_adminId);
+
+        // If fresh response has explicit isActive value, use it.
+        // Otherwise preserve our confirmed optimistic value.
+        // Note: parser defaults to true when all status fields are missing,
+        // so we can't distinguish "true from API" vs "defaulted to true".
+        // Solution: always trust our optimistic value unless the fresh
+        // response explicitly contradicts it.
+        final shouldPreserveOptimistic =
+            fresh.isActive != isActive && previousValue != null;
+
+        if (shouldPreserveOptimistic) {
+          // Backend returned stale/wrong value, keep our confirmed state
+          state = state.copyWith(
+            admin: fresh.copyWith(isActive: isActive),
+          );
+        } else {
+          // Backend confirmed our value or returned different valid state
+          state = state.copyWith(admin: fresh);
+        }
+      } catch (_) {
+        // Server refresh failed — keep the optimistic state.
+      }
+
+      // Notify list controller to update cached admin status
+      onAdminStatusChanged?.call(_adminId, isActive);
+
       return true;
     } catch (error) {
+      // Rollback on failure
       state = state.copyWith(
+        admin: state.admin?.copyWith(isActive: previousValue ?? true),
         isUpdatingStatus: false,
         sectionErrorMessage: _errorMessage(error),
       );
@@ -599,8 +714,10 @@ class SuperadminAdminDetailsController
       final vehicles = await _detailsService.getAdminVehicles(_adminId);
       state = state.copyWith(
         vehicles: vehicles,
+        vehicleCount: vehicles.length,
         isLoadingVehicles: false,
         hasLoadedVehicles: true,
+        admin: state.admin?.copyWith(totalVehicles: vehicles.length),
       );
     } catch (error) {
       state = state.copyWith(

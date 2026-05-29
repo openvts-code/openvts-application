@@ -221,5 +221,11 @@ final superadminAdminDetailsControllerProvider =
     adminId: adminId,
     detailsService: ref.watch(superadminAdminDetailsServiceProvider),
     paymentsService: ref.watch(superadminPaymentsServiceProvider),
+    onAdminStatusChanged: (id, isActive) {
+      // Update the administrators list when status changes
+      ref
+          .read(superadminAdministratorsControllerProvider.notifier)
+          .updateAdminStatusInList(adminId: id, isActive: isActive);
+    },
   )..loadInitial();
 });

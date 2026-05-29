@@ -33,6 +33,7 @@ class SuperadminPaymentsController
   Future<void> refresh() async {
     state = state.copyWith(
       refreshKey: _newRefreshKey(),
+      page: 1,
       errorMessage: null,
       analyticsErrorMessage: null,
     );
@@ -225,7 +226,7 @@ class SuperadminPaymentsController
 
       final needsRangeAdjustment = _shouldAdjustDateRange();
       final targetRangePreset = needsRangeAdjustment
-          ? SuperadminPaymentsRangePreset.thisMonth
+          ? SuperadminPaymentsRangePreset.allTime
           : state.rangePreset;
 
       state = state.copyWith(
@@ -258,6 +259,30 @@ class SuperadminPaymentsController
         _loadTransactions(targetPage: 1, append: false),
         loadAnalytics(),
       ]);
+
+      // Ensure the recorded transaction remains visible regardless of
+      // server reload outcome (eventual consistency, reload failure, or
+      // filter mismatch).
+      final hasTransaction = state.transactions.any((t) =>
+          (t.id.isNotEmpty && t.id == transaction.id) ||
+          (t.id.isEmpty &&
+              _fallbackTransactionKey(t) ==
+                  _fallbackTransactionKey(transaction)));
+      if (!hasTransaction) {
+        state = state.copyWith(
+          transactions: _insertTransactionOptimistically(
+            state.transactions,
+            transaction,
+          ),
+          total: state.total < 1 ? 1 : state.total,
+        );
+      }
+
+      // Payment succeeded — don't show reload errors as top-level errors.
+      // The optimistic transaction is visible; user can pull to refresh.
+      if (state.errorMessage != null) {
+        state = state.copyWith(errorMessage: null);
+      }
 
       return transaction;
     } catch (error) {
@@ -323,7 +348,7 @@ class SuperadminPaymentsController
       selectedAdminId: null,
       selectedStatus: null,
       searchQuery: '',
-      rangePreset: SuperadminPaymentsRangePreset.thisMonth,
+      rangePreset: SuperadminPaymentsRangePreset.allTime,
       customFrom: null,
       customTo: null,
       page: 1,
@@ -435,6 +460,8 @@ class SuperadminPaymentsController
   _RangeQuery _resolveRangeQuery() {
     final now = DateTime.now();
     switch (state.rangePreset) {
+      case SuperadminPaymentsRangePreset.allTime:
+        return const _RangeQuery(from: null, to: null);
       case SuperadminPaymentsRangePreset.thisMonth:
         final from = DateTime(now.year, now.month, 1);
         return _RangeQuery(

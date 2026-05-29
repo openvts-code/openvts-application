@@ -1,5 +1,6 @@
 import '../../superadmin/models/superadmin_payments_model.dart';
 import 'superadmin_admin_details_model.dart';
+import 'superadmin_administrator_model.dart' show SuperadminAdministrator;
 
 enum SuperadminAdminDetailsTab {
   profile,
@@ -25,6 +26,7 @@ class SuperadminAdminDetailsState {
     required this.documents,
     required this.documentTypes,
     required this.vehicles,
+    required this.vehicleCount,
     required this.activityLogs,
     required this.activityNextCursorId,
     required this.activityHasMore,
@@ -61,6 +63,8 @@ class SuperadminAdminDetailsState {
     required this.documentsErrorMessage,
     required this.documentTypesErrorMessage,
     required this.documentMutationErrorMessage,
+    required this.initialAdmin,
+    required this.resolvedLastLogin,
   });
 
   SuperadminAdminDetailsState.initial({required this.adminId})
@@ -76,6 +80,7 @@ class SuperadminAdminDetailsState {
         documents = const <SuperadminAdminDocument>[],
         documentTypes = const <SuperadminDocumentTypeOption>[],
         vehicles = const <SuperadminAdminVehicle>[],
+        vehicleCount = null,
         activityLogs = const <SuperadminAdminActivityLog>[],
         activityNextCursorId = null,
         activityHasMore = false,
@@ -111,13 +116,17 @@ class SuperadminAdminDetailsState {
         vehiclesErrorMessage = null,
         documentsErrorMessage = null,
         documentTypesErrorMessage = null,
-        documentMutationErrorMessage = null;
+        documentMutationErrorMessage = null,
+        initialAdmin = null,
+        resolvedLastLogin = null;
 
   static const Object _unset = Object();
 
   final String adminId;
   final SuperadminAdminDetails? admin;
   final SuperadminAdminDetailsTab selectedTab;
+  final SuperadminAdministrator? initialAdmin;
+  final DateTime? resolvedLastLogin;
   final List<SuperadminCreditLog> creditLogs;
   final List<SuperadminTransaction> transactions;
   final SuperadminTransactionsAnalytics? transactionAnalytics;
@@ -128,6 +137,7 @@ class SuperadminAdminDetailsState {
   final List<SuperadminAdminDocument> documents;
   final List<SuperadminDocumentTypeOption> documentTypes;
   final List<SuperadminAdminVehicle> vehicles;
+  final int? vehicleCount;
   final List<SuperadminAdminActivityLog> activityLogs;
   final int? activityNextCursorId;
   final bool activityHasMore;
@@ -178,6 +188,7 @@ class SuperadminAdminDetailsState {
     List<SuperadminAdminDocument>? documents,
     List<SuperadminDocumentTypeOption>? documentTypes,
     List<SuperadminAdminVehicle>? vehicles,
+    Object? vehicleCount = _unset,
     List<SuperadminAdminActivityLog>? activityLogs,
     Object? activityNextCursorId = _unset,
     bool? activityHasMore,
@@ -214,6 +225,8 @@ class SuperadminAdminDetailsState {
     Object? documentsErrorMessage = _unset,
     Object? documentTypesErrorMessage = _unset,
     Object? documentMutationErrorMessage = _unset,
+    Object? initialAdmin = _unset,
+    Object? resolvedLastLogin = _unset,
   }) {
     return SuperadminAdminDetailsState(
       adminId: adminId,
@@ -237,6 +250,9 @@ class SuperadminAdminDetailsState {
       documents: documents ?? this.documents,
       documentTypes: documentTypes ?? this.documentTypes,
       vehicles: vehicles ?? this.vehicles,
+      vehicleCount: identical(vehicleCount, _unset)
+          ? this.vehicleCount
+          : vehicleCount as int?,
       activityLogs: activityLogs ?? this.activityLogs,
       activityNextCursorId: identical(activityNextCursorId, _unset)
           ? this.activityNextCursorId
@@ -298,6 +314,12 @@ class SuperadminAdminDetailsState {
           identical(documentMutationErrorMessage, _unset)
               ? this.documentMutationErrorMessage
               : documentMutationErrorMessage as String?,
+      initialAdmin: identical(initialAdmin, _unset)
+          ? this.initialAdmin
+          : initialAdmin as SuperadminAdministrator?,
+      resolvedLastLogin: identical(resolvedLastLogin, _unset)
+          ? this.resolvedLastLogin
+          : resolvedLastLogin as DateTime?,
     );
   }
 }

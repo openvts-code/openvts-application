@@ -1,6 +1,7 @@
 import 'superadmin_payments_model.dart';
 
 enum SuperadminPaymentsRangePreset {
+  allTime,
   thisMonth,
   last30,
   thisYear,
@@ -37,7 +38,7 @@ class SuperadminPaymentsState {
         selectedAdminId = null,
         selectedStatus = null,
         searchQuery = '',
-        rangePreset = SuperadminPaymentsRangePreset.thisMonth,
+        rangePreset = SuperadminPaymentsRangePreset.allTime,
         customFrom = null,
         customTo = null,
         page = 1,
@@ -81,7 +82,7 @@ class SuperadminPaymentsState {
     return selectedAdminId != null ||
         selectedStatus != null ||
         searchQuery.trim().isNotEmpty ||
-        rangePreset != SuperadminPaymentsRangePreset.thisMonth;
+        rangePreset != SuperadminPaymentsRangePreset.allTime;
   }
 
   SuperadminPaymentsState copyWith({
@@ -119,14 +120,17 @@ class SuperadminPaymentsState {
           : selectedStatus as SuperadminTransactionStatus?,
       searchQuery: searchQuery ?? this.searchQuery,
       rangePreset: rangePreset ?? this.rangePreset,
-      customFrom:
-          identical(customFrom, _unset) ? this.customFrom : customFrom as DateTime?,
-      customTo: identical(customTo, _unset) ? this.customTo : customTo as DateTime?,
+      customFrom: identical(customFrom, _unset)
+          ? this.customFrom
+          : customFrom as DateTime?,
+      customTo:
+          identical(customTo, _unset) ? this.customTo : customTo as DateTime?,
       page: page ?? this.page,
       limit: limit ?? this.limit,
       total: total ?? this.total,
       isLoadingAdmins: isLoadingAdmins ?? this.isLoadingAdmins,
-      isLoadingTransactions: isLoadingTransactions ?? this.isLoadingTransactions,
+      isLoadingTransactions:
+          isLoadingTransactions ?? this.isLoadingTransactions,
       isLoadingAnalytics: isLoadingAnalytics ?? this.isLoadingAnalytics,
       isRecordingPayment: isRecordingPayment ?? this.isRecordingPayment,
       errorMessage: identical(errorMessage, _unset)

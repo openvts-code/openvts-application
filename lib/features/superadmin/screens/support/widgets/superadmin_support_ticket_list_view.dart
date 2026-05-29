@@ -35,7 +35,8 @@ class SuperadminSupportTicketListView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hasActiveFilters = state.statusFilter != null || state.searchQuery.trim().isNotEmpty;
+    final hasActiveFilters =
+        state.statusFilter != null || state.searchQuery.trim().isNotEmpty;
 
     return RefreshIndicator(
       onRefresh: onRefresh,
@@ -55,7 +56,8 @@ class SuperadminSupportTicketListView extends StatelessWidget {
           SliverToBoxAdapter(
             child: _StatusTabs(
               selected: state.statusFilter,
-              tickets: state.tickets,
+              allTicketCount: state.allTicketCount,
+              statusCounts: state.statusCounts,
               onChanged: onStatusChanged,
             ),
           ),
@@ -208,28 +210,25 @@ class _SupportHeader extends StatelessWidget {
 class _StatusTabs extends StatelessWidget {
   const _StatusTabs({
     required this.selected,
-    required this.tickets,
+    required this.allTicketCount,
+    required this.statusCounts,
     required this.onChanged,
   });
 
   final SuperadminSupportTicketStatus? selected;
-  final List<SuperadminSupportTicketListItem> tickets;
+  final int allTicketCount;
+  final Map<SuperadminSupportTicketStatus, int> statusCounts;
   final ValueChanged<SuperadminSupportTicketStatus?> onChanged;
 
   @override
   Widget build(BuildContext context) {
-    final counts = <SuperadminSupportTicketStatus, int>{
-      for (final status in SuperadminSupportTicketStatus.values)
-        status: tickets.where((ticket) => ticket.status == status).length,
-    };
-
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
         children: [
           OpenVtsSupportFilterChip(
             label: 'All',
-            count: tickets.length,
+            count: allTicketCount,
             selected: selected == null,
             onSelected: () => onChanged(null),
           ),
@@ -237,7 +236,7 @@ class _StatusTabs extends StatelessWidget {
           for (final status in SuperadminSupportTicketStatus.values) ...[
             OpenVtsSupportFilterChip(
               label: status.label,
-              count: counts[status] ?? 0,
+              count: statusCounts[status] ?? 0,
               selected: selected == status,
               onSelected: () => onChanged(status),
             ),

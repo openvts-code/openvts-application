@@ -25,11 +25,31 @@ class SuperadminSupportController
     );
 
     try {
+      final search =
+          state.searchQuery.trim().isEmpty ? null : state.searchQuery;
+      final refreshKey =
+          state.refreshKey.trim().isEmpty ? null : state.refreshKey;
+
       final tickets = await _service.getTickets(
         status: state.statusFilter,
-        search: state.searchQuery.trim().isEmpty ? null : state.searchQuery,
-        refreshKey: state.refreshKey.trim().isEmpty ? null : state.refreshKey,
+        search: search,
+        refreshKey: refreshKey,
       );
+
+      // Load all tickets (unfiltered by status) to derive accurate counts.
+      // If no status filter is active, reuse the already-fetched list.
+      final allTickets = state.statusFilter == null
+          ? tickets
+          : await _service.getTickets(
+              status: null,
+              search: search,
+              refreshKey: refreshKey,
+            );
+
+      final statusCounts = <SuperadminSupportTicketStatus, int>{
+        for (final s in SuperadminSupportTicketStatus.values)
+          s: allTickets.where((t) => t.status == s).length,
+      };
 
       final selectedId = state.selectedTicketId;
       final hasSelected =
@@ -37,6 +57,8 @@ class SuperadminSupportController
 
       state = state.copyWith(
         tickets: tickets,
+        statusCounts: statusCounts,
+        allTicketCount: allTickets.length,
         selectedTicketId: hasSelected ? selectedId : null,
         selectedTicketDetails: hasSelected ? state.selectedTicketDetails : null,
         isLoadingTickets: false,

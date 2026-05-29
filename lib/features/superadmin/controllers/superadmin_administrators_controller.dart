@@ -287,6 +287,23 @@ class SuperadminAdministratorsController
     }
   }
 
+  /// Update a single admin's status in the cached list.
+  /// Call this after successfully updating status in details screen
+  /// to keep the list in sync without refetching.
+  void updateAdminStatusInList({
+    required String adminId,
+    required bool isActive,
+  }) {
+    final updated = state.administrators.map((admin) {
+      if (admin.id == adminId) {
+        return admin.copyWith(isActive: isActive);
+      }
+      return admin;
+    }).toList(growable: false);
+
+    state = state.copyWith(administrators: updated);
+  }
+
   String _toErrorMessage(Object error) {
     if (error is DioException) {
       final responseMessage = _extractResponseMessage(error.response?.data);

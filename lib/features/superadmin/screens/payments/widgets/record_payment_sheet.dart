@@ -215,6 +215,15 @@ class _RecordPaymentSheetState extends ConsumerState<RecordPaymentSheet> {
     final state = ref.watch(superadminPaymentsControllerProvider);
     final admins = state.admins;
 
+    if (_adminId == null && admins.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _adminId != null) return;
+        setState(() {
+          _adminId = state.selectedAdminId ?? admins.first.uid;
+        });
+      });
+    }
+
     final selectedAdmin = _selectedAdmin(admins);
     final amountError =
         _didAttemptSubmit ? _validateAmount(_amountController.text) : null;

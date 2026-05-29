@@ -12,7 +12,6 @@ import '../../../../../shared/helpers/toast_helper.dart';
 import '../../../../../shared/widgets/open_vts_button.dart';
 import '../../../../../shared/widgets/open_vts_card.dart';
 import '../../../../../shared/widgets/open_vts_loader.dart';
-import '../../../../../shared/widgets/open_vts_status_chip.dart';
 import '../../../../../shared/widgets/open_vts_text_field.dart';
 import '../../../controllers/superadmin_admin_details_controller.dart';
 import '../../../controllers/superadmin_providers.dart';
@@ -40,14 +39,31 @@ const _kSocialKeys = <String>[
 // Profile tab
 // =============================================================================
 
-class AdminDetailsProfileTab extends ConsumerWidget {
+class AdminDetailsProfileTab extends ConsumerStatefulWidget {
   const AdminDetailsProfileTab({required this.adminId, super.key});
 
   final String adminId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final provider = superadminAdminDetailsControllerProvider(adminId);
+  ConsumerState<AdminDetailsProfileTab> createState() =>
+      _AdminDetailsProfileTabState();
+}
+
+class _AdminDetailsProfileTabState
+    extends ConsumerState<AdminDetailsProfileTab> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref
+          .read(superadminAdminDetailsControllerProvider(widget.adminId).notifier)
+          .ensureVehicleCountLoaded();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final provider = superadminAdminDetailsControllerProvider(widget.adminId);
     final admin = ref.watch(provider.select((s) => s.admin));
     final isUpdatingStatus =
         ref.watch(provider.select((s) => s.isUpdatingStatus));
@@ -70,6 +86,7 @@ class AdminDetailsProfileTab extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _AdminPersonalCard(
+          adminId: widget.adminId,
           admin: admin,
           isUpdatingStatus: isUpdatingStatus,
           isBusy: isBusy,
@@ -84,13 +101,13 @@ class AdminDetailsProfileTab extends ConsumerWidget {
           admin: admin,
           company: company,
           isBusy: isBusy,
-          onEditCompany: () => _openEditCompany(context, ref, company),
+          onEditCompany: () => _openEditCompany(company),
         ),
         const SizedBox(height: OpenVtsSpacing.md),
         _BottomActions(
           isBusy: isBusy,
-          onEditProfile: () => _openEditProfile(context, ref, admin),
-          onChangePassword: () => _openChangePassword(context, ref),
+          onEditProfile: () => _openEditProfile(admin),
+          onChangePassword: () => _openChangePassword(),
         ),
         const SizedBox(height: OpenVtsSpacing.lg),
       ],
@@ -114,11 +131,8 @@ class AdminDetailsProfileTab extends ConsumerWidget {
     }
   }
 
-  Future<void> _openEditProfile(
-    BuildContext context,
-    WidgetRef ref,
-    SuperadminAdminDetails admin,
-  ) async {
+  Future<void> _openEditProfile(SuperadminAdminDetails admin) async {
+    if (!mounted) return;
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -126,14 +140,12 @@ class AdminDetailsProfileTab extends ConsumerWidget {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (_) => _EditProfileSheet(adminId: adminId, admin: admin),
+      builder: (_) => _EditProfileSheet(adminId: widget.adminId, admin: admin),
     );
   }
 
-  Future<void> _openChangePassword(
-    BuildContext context,
-    WidgetRef ref,
-  ) async {
+  Future<void> _openChangePassword() async {
+    if (!mounted) return;
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -141,15 +153,12 @@ class AdminDetailsProfileTab extends ConsumerWidget {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (_) => _ChangePasswordSheet(adminId: adminId),
+      builder: (_) => _ChangePasswordSheet(adminId: widget.adminId),
     );
   }
 
-  Future<void> _openEditCompany(
-    BuildContext context,
-    WidgetRef ref,
-    SuperadminAdminCompany? company,
-  ) async {
+  Future<void> _openEditCompany(SuperadminAdminCompany? company) async {
+    if (!mounted) return;
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -157,30 +166,32 @@ class AdminDetailsProfileTab extends ConsumerWidget {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (_) => _EditCompanySheet(adminId: adminId, company: company),
+      builder: (_) => _EditCompanySheet(adminId: widget.adminId, company: company),
     );
   }
 }
 
 // =============================================================================
-// 1. Admin personal card — identity + contact + stats in one card
+// 1. Admin personal card — identity + contact + location + stats
 // =============================================================================
 
-class _AdminPersonalCard extends StatelessWidget {
+class _AdminPersonalCard extends ConsumerWidget {
   const _AdminPersonalCard({
+    required this.adminId,
     required this.admin,
     required this.isUpdatingStatus,
     required this.isBusy,
     required this.onToggleStatus,
   });
 
+  final String adminId;
   final SuperadminAdminDetails admin;
   final bool isUpdatingStatus;
   final bool isBusy;
   final ValueChanged<bool> onToggleStatus;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     const fmt = DateTimeFormatter();
     final address = admin.address;
     final addressLine = address?.addressLine ?? admin.location;
@@ -189,26 +200,25 @@ class _AdminPersonalCard extends StatelessWidget {
     final countryCode = address?.countryCode ?? admin.countryCode;
     final pincode = address?.pincode ?? admin.pincode;
 
-    final locationParts = <String>[
-      if (city.isNotEmpty) city,
-      if (stateCode.isNotEmpty) stateCode,
-      if (countryCode.isNotEmpty) countryCode,
-    ];
-    final locationLine = locationParts.join(', ');
-
-    final lastLogin =
-        admin.recentLogin != null ? fmt.formatDate(admin.recentLogin!) : '—';
+    // Get resolved last login from controller state
+    final controllerState = ref.watch(
+      superadminAdminDetailsControllerProvider(adminId).select((s) => s),
+    );
+    final resolvedLastLogin =
+        controllerState.resolvedLastLogin ?? admin.recentLogin;
+    final lastLogin = resolvedLastLogin != null
+        ? fmt.formatDate(resolvedLastLogin)
+        : 'Never';
     final created =
         admin.createdAt != null ? fmt.formatDate(admin.createdAt!) : '—';
 
-    return OpenVtsCard(
-      padding: const EdgeInsets.all(OpenVtsSpacing.md),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // --- Header: Avatar + name + status toggle ---
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    return _SectionCard(
+      title: 'ACCOUNT',
+      children: [
+        // --- Avatar + Name + Username + Status Toggle ---
+        Padding(
+          padding: const EdgeInsets.only(bottom: OpenVtsSpacing.xs),
+          child: Row(
             children: [
               _Avatar(name: admin.name),
               const SizedBox(width: OpenVtsSpacing.sm),
@@ -218,8 +228,10 @@ class _AdminPersonalCard extends StatelessWidget {
                   children: [
                     Text(
                       admin.name,
-                      style: OpenVtsTypography.body.copyWith(
-                        fontWeight: FontWeight.w700,
+                      style: OpenVtsTypography.label.copyWith(
+                        color: OpenVtsColors.textPrimary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -229,97 +241,119 @@ class _AdminPersonalCard extends StatelessWidget {
                       '@${admin.username}',
                       style: OpenVtsTypography.meta.copyWith(
                         color: OpenVtsColors.textSecondary,
+                        fontSize: 11,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: OpenVtsSpacing.xs),
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 4,
-                      children: [
-                        OpenVtsStatusChip(
-                          label: admin.isActive ? 'Active' : 'Inactive',
-                          type: admin.isActive
-                              ? OpenVtsStatusType.success
-                              : OpenVtsStatusType.neutral,
-                        ),
-                        if (admin.isEmailVerified)
-                          const OpenVtsStatusChip(
-                            label: 'Email verified',
-                            type: OpenVtsStatusType.info,
-                          ),
-                      ],
-                    ),
                   ],
                 ),
               ),
+              const SizedBox(width: OpenVtsSpacing.xs),
               if (isUpdatingStatus)
                 const SizedBox(
-                  height: 24,
-                  width: 24,
+                  width: 20,
+                  height: 20,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
               else
-                Transform.scale(
-                  scale: 0.8,
-                  child: Switch(
+                SizedBox(
+                  width: 44,
+                  height: 44,
+                  child: Switch.adaptive(
                     value: admin.isActive,
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     onChanged: isBusy ? null : onToggleStatus,
-                    activeTrackColor:
-                        OpenVtsColors.success.withValues(alpha: 0.4),
-                    activeThumbColor: OpenVtsColors.success,
                   ),
                 ),
             ],
           ),
-          const SizedBox(height: OpenVtsSpacing.sm),
-          const Divider(height: 1, color: OpenVtsColors.border),
-          const SizedBox(height: OpenVtsSpacing.sm),
-
-          // --- Contact rows ---
-          if (admin.email.isNotEmpty)
-            _InfoRow(icon: Icons.mail_outline_rounded, value: admin.email),
-          if (admin.mobileDisplay.isNotEmpty)
-            _InfoRow(icon: Icons.phone_outlined, value: admin.mobileDisplay),
-          if (addressLine.isNotEmpty)
-            _InfoRow(icon: Icons.home_outlined, value: addressLine),
-          if (locationLine.isNotEmpty)
-            _InfoRow(icon: Icons.location_on_outlined, value: locationLine),
-          if (pincode.isNotEmpty)
-            _InfoRow(
-              icon: Icons.local_post_office_outlined,
-              value: pincode,
-            ),
-
-          const SizedBox(height: OpenVtsSpacing.xs),
-          const Divider(height: 1, color: OpenVtsColors.border),
-          const SizedBox(height: OpenVtsSpacing.sm),
-
-          // --- Stats strip ---
-          Row(
+        ),
+        _InfoRow(
+            label: 'Address', value: addressLine, icon: Icons.home_outlined),
+        _InfoRow(
+            label: 'Country', value: countryCode, icon: Icons.public_outlined),
+        _InfoRow(label: 'State', value: stateCode, icon: Icons.map_outlined),
+        _InfoRow(
+            label: 'City', value: city, icon: Icons.location_city_outlined),
+        _InfoRow(
+            label: 'Pincode',
+            value: pincode,
+            icon: Icons.local_post_office_outlined),
+        // Compact created & last login row
+        Padding(
+          padding: const EdgeInsets.only(top: OpenVtsSpacing.xs),
+          child: Row(
             children: [
-              _StatCell(label: 'Credits', value: admin.credits.toString()),
-              _statDivider(),
-              _StatCell(
-                  label: 'Vehicles', value: admin.totalVehicles.toString()),
-              _statDivider(),
-              _StatCell(label: 'Created', value: created),
-              _statDivider(),
-              _StatCell(label: 'Last login', value: lastLogin),
+              Expanded(
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.event_outlined,
+                      size: 14,
+                      color: OpenVtsColors.textTertiary,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Created: ',
+                      style: OpenVtsTypography.meta.copyWith(
+                        color: OpenVtsColors.textTertiary,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    Flexible(
+                      child: Text(
+                        created,
+                        style: OpenVtsTypography.label.copyWith(
+                          color: OpenVtsColors.textSecondary,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: OpenVtsSpacing.xs),
+              Expanded(
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.login_outlined,
+                      size: 14,
+                      color: OpenVtsColors.textTertiary,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Last login: ',
+                      style: OpenVtsTypography.meta.copyWith(
+                        color: OpenVtsColors.textTertiary,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    Flexible(
+                      child: Text(
+                        lastLogin,
+                        style: OpenVtsTypography.label.copyWith(
+                          color: OpenVtsColors.textSecondary,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _statDivider() {
-    return Container(
-      width: 1,
-      height: 28,
-      margin: const EdgeInsets.symmetric(horizontal: 2),
-      color: OpenVtsColors.border,
+        ),
+      ],
     );
   }
 }
@@ -355,68 +389,79 @@ class _CompanyCard extends StatelessWidget {
       (k) => (socialLinks[k]?.trim().isNotEmpty ?? false),
     );
 
-    return OpenVtsCard(
-      padding: const EdgeInsets.all(OpenVtsSpacing.md),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Expanded(child: _SectionLabel(label: 'COMPANY')),
-              SizedBox(
-                width: 32,
-                height: 32,
-                child: IconButton(
-                  padding: EdgeInsets.zero,
-                  constraints:
-                      const BoxConstraints(minWidth: 32, minHeight: 32),
-                  icon: const Icon(
-                    Icons.edit_outlined,
-                    size: 16,
-                    color: OpenVtsColors.textSecondary,
-                  ),
-                  tooltip: 'Edit company',
-                  onPressed: isBusy ? null : onEditCompany,
-                ),
-              ),
-            ],
+    return _SectionCard(
+      title: 'COMPANY',
+      trailing: SizedBox(
+        width: 32,
+        height: 32,
+        child: IconButton(
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+          icon: const Icon(
+            Icons.edit_outlined,
+            size: 16,
+            color: OpenVtsColors.textSecondary,
           ),
-          const SizedBox(height: OpenVtsSpacing.xs),
-          if (companyName.isNotEmpty)
-            _InfoRow(icon: Icons.business_outlined, value: companyName),
-          if (website.isNotEmpty)
-            _InfoRow(icon: Icons.language_outlined, value: website),
-          if (domain.isNotEmpty)
-            _InfoRow(icon: Icons.dns_outlined, value: domain),
-          if (color.isNotEmpty)
-            _InfoRow(
-              icon: Icons.palette_outlined,
-              value: color,
-              trailing: Container(
-                width: 12,
-                height: 12,
-                decoration: BoxDecoration(
-                  color: _colorFromName(color),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: OpenVtsColors.border),
-                ),
-              ),
-            ),
-          if (hasSocial) ...[
-            const SizedBox(height: OpenVtsSpacing.xs),
-            Wrap(
-              spacing: OpenVtsSpacing.xs,
-              runSpacing: OpenVtsSpacing.xs,
-              children: [
-                for (final k in _kSocialKeys)
-                  if (socialLinks[k]?.trim().isNotEmpty ?? false)
-                    _SocialIcon(platform: k),
-              ],
-            ),
-          ],
-        ],
+          tooltip: 'Edit company',
+          onPressed: isBusy ? null : onEditCompany,
+        ),
       ),
+      children: [
+        _InfoRow(
+            label: 'Company',
+            value: companyName,
+            icon: Icons.business_outlined),
+        _InfoRow(
+            label: 'Website', value: website, icon: Icons.language_outlined),
+        _InfoRow(label: 'Domain', value: domain, icon: Icons.dns_outlined),
+        _InfoRow(
+          label: 'Brand color',
+          value: color,
+          icon: Icons.palette_outlined,
+          trailing: color.trim().isNotEmpty
+              ? Padding(
+                  padding: const EdgeInsets.only(left: 6),
+                  child: Container(
+                    width: 14,
+                    height: 14,
+                    decoration: BoxDecoration(
+                      color: _colorFromName(color),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: OpenVtsColors.border),
+                    ),
+                  ),
+                )
+              : null,
+        ),
+        if (hasSocial)
+          for (final k in _kSocialKeys)
+            if (socialLinks[k]?.trim().isNotEmpty ?? false)
+              _InfoRow(
+                label: _socialLabel(k),
+                value: socialLinks[k]!.trim(),
+                icon: Icons.link_rounded,
+              ),
+      ],
     );
+  }
+
+  static String _socialLabel(String key) {
+    switch (key) {
+      case 'facebook':
+        return 'Facebook';
+      case 'twitter':
+        return 'Twitter';
+      case 'linkedin':
+        return 'LinkedIn';
+      case 'instagram':
+        return 'Instagram';
+      case 'youtube':
+        return 'YouTube';
+      case 'github':
+        return 'GitHub';
+      default:
+        return key;
+    }
   }
 }
 
@@ -463,6 +508,52 @@ class _BottomActions extends StatelessWidget {
 // Shared display components
 // =============================================================================
 
+class _SectionCard extends StatelessWidget {
+  const _SectionCard(
+      {required this.title, required this.children, this.trailing});
+
+  final String title;
+  final List<Widget> children;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    return OpenVtsCard(
+      padding: const EdgeInsets.fromLTRB(
+        OpenVtsSpacing.md,
+        OpenVtsSpacing.sm,
+        OpenVtsSpacing.md,
+        OpenVtsSpacing.md,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: OpenVtsColors.textTertiary,
+                    letterSpacing: 0.4,
+                  ),
+                ),
+              ),
+              if (trailing != null) trailing!,
+            ],
+          ),
+          const SizedBox(height: OpenVtsSpacing.xs),
+          const Divider(height: 1, color: OpenVtsColors.border),
+          const SizedBox(height: OpenVtsSpacing.xs),
+          ...children,
+        ],
+      ),
+    );
+  }
+}
+
 class _Avatar extends StatelessWidget {
   const _Avatar({required this.name});
   final String name;
@@ -502,133 +593,66 @@ class _Avatar extends StatelessWidget {
 
 class _InfoRow extends StatelessWidget {
   const _InfoRow({
-    required this.icon,
-    required this.value,
+    required this.label,
+    this.value,
+    this.valueWidget,
+    this.icon,
     this.trailing,
-  });
+  }) : assert(value != null || valueWidget != null);
 
-  final IconData icon;
-  final String value;
+  final String label;
+  final String? value;
+  final Widget? valueWidget;
+  final IconData? icon;
   final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.only(bottom: OpenVtsSpacing.xs),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 15, color: OpenVtsColors.textTertiary),
-          const SizedBox(width: 10),
-          Expanded(
+          if (icon != null) ...[
+            Icon(icon, size: 14, color: OpenVtsColors.textTertiary),
+            const SizedBox(width: 8),
+          ],
+          SizedBox(
+            width: 108,
             child: Text(
-              value,
+              label,
               style: OpenVtsTypography.meta.copyWith(
-                color: OpenVtsColors.textPrimary,
-                fontWeight: FontWeight.w500,
+                color: OpenVtsColors.textTertiary,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ),
-          if (trailing != null) ...[
-            const SizedBox(width: 8),
-            trailing!,
-          ],
+          const SizedBox(width: OpenVtsSpacing.xs),
+          Expanded(
+            child: valueWidget ??
+                Text(
+                  _displayValue(value ?? ''),
+                  style: OpenVtsTypography.label.copyWith(
+                    color: OpenVtsColors.textPrimary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+          ),
+          if (trailing != null) trailing!,
         ],
       ),
     );
   }
 }
 
-class _StatCell extends StatelessWidget {
-  const _StatCell({required this.label, required this.value});
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Column(
-        children: [
-          Text(
-            value,
-            style: OpenVtsTypography.body.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: OpenVtsTypography.meta.copyWith(
-              color: OpenVtsColors.textTertiary,
-              fontSize: 10,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
+String _displayValue(String value) {
+  final normalized = value.trim();
+  if (normalized.isEmpty || normalized == '-') {
+    return '—';
   }
-}
-
-class _SectionLabel extends StatelessWidget {
-  const _SectionLabel({required this.label});
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      label,
-      style: const TextStyle(
-        fontSize: 10,
-        fontWeight: FontWeight.w700,
-        color: OpenVtsColors.textTertiary,
-        letterSpacing: 0.6,
-      ),
-    );
-  }
-}
-
-class _SocialIcon extends StatelessWidget {
-  const _SocialIcon({required this.platform});
-  final String platform;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 28,
-      height: 28,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(OpenVtsRadius.sm),
-        border: Border.all(color: OpenVtsColors.border),
-      ),
-      child: Icon(_iconFor(platform),
-          size: 14, color: OpenVtsColors.textSecondary),
-    );
-  }
-
-  static IconData _iconFor(String key) {
-    switch (key) {
-      case 'facebook':
-        return Icons.facebook_rounded;
-      case 'twitter':
-        return Icons.alternate_email_rounded;
-      case 'linkedin':
-        return Icons.business_center_outlined;
-      case 'instagram':
-        return Icons.photo_camera_outlined;
-      case 'youtube':
-        return Icons.play_circle_outline_rounded;
-      case 'github':
-        return Icons.code_rounded;
-      default:
-        return Icons.link_rounded;
-    }
-  }
+  return normalized;
 }
 
 // =============================================================================

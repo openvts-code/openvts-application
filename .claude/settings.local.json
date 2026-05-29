@@ -14,7 +14,9 @@
       "Bash(find /e:/Development/OpenVTS/openvts-application/lib -type f -name \"*.dart\" | head -30)",
       "Bash(xargs grep -l \"avatar\\\\|Avatar\\\\|initials\\\\|Initials\")",
       "Bash(flutter --version)",
-      "Bash(cd e:\\\\\\\\Development\\\\\\\\OpenVTS\\\\\\\\openvts-application)"
+      "Bash(cd e:\\\\\\\\Development\\\\\\\\OpenVTS\\\\\\\\openvts-application)",
+      "Bash(cat)",
+      "Read(//tmp/**)"
     ],
     "additionalDirectories": [
       "C:\\Users\\user\\.config\\opencode"

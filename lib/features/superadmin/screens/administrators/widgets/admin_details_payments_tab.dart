@@ -247,7 +247,7 @@ class _KpiStrip extends StatelessWidget {
         Expanded(
           child: _CompactKpiCard(
             icon: Icons.check_circle_rounded,
-            iconColor: OpenVtsColors.success,
+            iconColor: OpenVtsColors.brandInk,
             label: 'Successful',
             value: compact.format(success),
           ),
@@ -256,7 +256,7 @@ class _KpiStrip extends StatelessWidget {
         Expanded(
           child: _CompactKpiCard(
             icon: Icons.pending_rounded,
-            iconColor: OpenVtsColors.warning,
+            iconColor: OpenVtsColors.brandInk,
             label: 'Pending',
             value: compact.format(pending),
           ),
@@ -265,7 +265,7 @@ class _KpiStrip extends StatelessWidget {
         Expanded(
           child: _CompactKpiCard(
             icon: Icons.cancel_rounded,
-            iconColor: OpenVtsColors.error,
+            iconColor: OpenVtsColors.brandInk,
             label: 'Failed',
             value: compact.format(failed),
           ),

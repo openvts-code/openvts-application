@@ -27,26 +27,28 @@ class SuperadminTransactionCard extends StatelessWidget {
     final amountText = _formatAmount(transaction.amount);
     final currency = transaction.currency.trim();
     final modeLabel = transaction.paymentMode.label;
-    final paymentType = transaction.paymentType.trim();
-    final recordedBy = transaction.recordedBy?.displayName ?? '';
     final dateText = _formatDateTime(transaction);
     final referenceLine = _referenceLine(transaction);
 
     return OpenVtsCard(
       onTap: onTap,
+      padding: const EdgeInsets.symmetric(
+        horizontal: OpenVtsSpacing.md,
+        vertical: OpenVtsSpacing.sm,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
                 child: Text(
                   adminName,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: OpenVtsTypography.titleSmall.copyWith(
+                  style: OpenVtsTypography.body.copyWith(
                     color: OpenVtsColors.textPrimary,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
@@ -57,65 +59,53 @@ class SuperadminTransactionCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: OpenVtsSpacing.xs),
+          const SizedBox(height: 6),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
             children: [
               Expanded(
                 child: Text(
-                  '${currency.isEmpty ? '' : '$currency '} $amountText'
-                      .replaceAll('  ', ' ')
-                      .trim(),
+                  '${currency.isEmpty ? '' : '$currency '}$amountText'.trim(),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: OpenVtsTypography.numeric.copyWith(
-                    fontSize: 24,
+                    fontSize: 18,
                     color: OpenVtsColors.textPrimary,
                   ),
                 ),
               ),
-              const SizedBox(width: OpenVtsSpacing.sm),
-              Text(
-                modeLabel,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: OpenVtsTypography.body.copyWith(
-                  color: OpenVtsColors.textSecondary,
-                  fontWeight: FontWeight.w600,
+              const SizedBox(width: OpenVtsSpacing.xs),
+              _SmallLabel(value: modeLabel),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  dateText,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: OpenVtsTypography.meta.copyWith(
+                    color: OpenVtsColors.textSecondary,
+                  ),
                 ),
               ),
+              if (referenceLine.isNotEmpty)
+                Flexible(
+                  child: Text(
+                    referenceLine,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.end,
+                    style: OpenVtsTypography.meta.copyWith(
+                      color: OpenVtsColors.textTertiary,
+                    ),
+                  ),
+                ),
             ],
           ),
-          const SizedBox(height: OpenVtsSpacing.xs),
-          Wrap(
-            spacing: OpenVtsSpacing.xs,
-            runSpacing: OpenVtsSpacing.xxs,
-            children: [
-              if (paymentType.isNotEmpty)
-                _SmallLabel(value: paymentType.toUpperCase()),
-              if (recordedBy.trim().isNotEmpty)
-                _SmallLabel(value: 'Recorded by $recordedBy'),
-            ],
-          ),
-          const SizedBox(height: OpenVtsSpacing.xs),
-          Text(
-            dateText,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: OpenVtsTypography.meta.copyWith(
-              color: OpenVtsColors.textSecondary,
-            ),
-          ),
-          if (referenceLine.isNotEmpty) ...[
-            const SizedBox(height: OpenVtsSpacing.xxs),
-            Text(
-              referenceLine,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: OpenVtsTypography.meta.copyWith(
-                color: OpenVtsColors.textTertiary,
-              ),
-            ),
-          ],
         ],
       ),
     );

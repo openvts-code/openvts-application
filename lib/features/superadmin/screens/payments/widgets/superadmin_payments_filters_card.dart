@@ -154,6 +154,7 @@ class _CollapsibleFiltersSectionState
             initialValue: selectedAdminValue,
             isExpanded: true,
             decoration: InputDecoration(
+              isDense: true,
               labelText: 'Administrator',
               suffixIcon: widget.state.isLoadingAdmins
                   ? const Padding(
@@ -178,6 +179,26 @@ class _CollapsibleFiltersSectionState
                 ),
               ),
             ],
+            selectedItemBuilder: (context) => [
+              const Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'All Admins',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              ...admins.map(
+                (admin) => Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    _compactAdminLabel(admin),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ),
+            ],
             onChanged: (value) => widget.onAdminChanged(value?.toString()),
           ),
           const SizedBox(height: OpenVtsSpacing.sm),
@@ -192,6 +213,14 @@ class _CollapsibleFiltersSectionState
             spacing: OpenVtsSpacing.xs,
             runSpacing: OpenVtsSpacing.xs,
             children: [
+              _FilterChoiceChip(
+                label: 'All Time',
+                selected: widget.state.rangePreset ==
+                    SuperadminPaymentsRangePreset.allTime,
+                onTap: () => widget.onRangePresetChanged(
+                  SuperadminPaymentsRangePreset.allTime,
+                ),
+              ),
               _FilterChoiceChip(
                 label: 'This Month',
                 selected: widget.state.rangePreset ==
@@ -287,6 +316,15 @@ class _CollapsibleFiltersSectionState
         ],
       ],
     );
+  }
+
+  String _compactAdminLabel(SuperadminPaymentAdminOption admin) {
+    final name = admin.displayName;
+    final username = admin.username.trim();
+    if (username.isNotEmpty) {
+      return '$name · @$username';
+    }
+    return name;
   }
 
   List<SuperadminPaymentAdminOption> _resolveAdminOptions() {

@@ -3,6 +3,8 @@ import 'superadmin_support_model.dart';
 class SuperadminSupportState {
   const SuperadminSupportState({
     required this.tickets,
+    required this.statusCounts,
+    required this.allTicketCount,
     required this.selectedTicketId,
     required this.selectedTicketDetails,
     required this.adminsForCreateTicket,
@@ -21,6 +23,8 @@ class SuperadminSupportState {
 
   const SuperadminSupportState.initial()
       : tickets = const <SuperadminSupportTicketListItem>[],
+        statusCounts = const <SuperadminSupportTicketStatus, int>{},
+        allTicketCount = 0,
         selectedTicketId = null,
         selectedTicketDetails = null,
         adminsForCreateTicket = const <SuperadminSupportAdminMini>[],
@@ -39,6 +43,8 @@ class SuperadminSupportState {
   static const Object _unset = Object();
 
   final List<SuperadminSupportTicketListItem> tickets;
+  final Map<SuperadminSupportTicketStatus, int> statusCounts;
+  final int allTicketCount;
   final int? selectedTicketId;
   final SuperadminSupportTicketDetails? selectedTicketDetails;
   final List<SuperadminSupportAdminMini> adminsForCreateTicket;
@@ -79,6 +85,8 @@ class SuperadminSupportState {
 
   SuperadminSupportState copyWith({
     List<SuperadminSupportTicketListItem>? tickets,
+    Map<SuperadminSupportTicketStatus, int>? statusCounts,
+    int? allTicketCount,
     Object? selectedTicketId = _unset,
     Object? selectedTicketDetails = _unset,
     List<SuperadminSupportAdminMini>? adminsForCreateTicket,
@@ -96,6 +104,8 @@ class SuperadminSupportState {
   }) {
     return SuperadminSupportState(
       tickets: tickets ?? this.tickets,
+      statusCounts: statusCounts ?? this.statusCounts,
+      allTicketCount: allTicketCount ?? this.allTicketCount,
       selectedTicketId: identical(selectedTicketId, _unset)
           ? this.selectedTicketId
           : selectedTicketId as int?,

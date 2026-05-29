@@ -59,6 +59,8 @@ class SuperadminAdminDetails {
   final List<SuperadminAdminCompany> companies;
   final SuperadminAdminAddress? address;
 
+  static const Object _unset = Object();
+
   factory SuperadminAdminDetails.fromJson(dynamic json) {
     final root = _asMap(json);
     final source = _firstMap(root, const [
@@ -157,26 +159,56 @@ class SuperadminAdminDetails {
             'totalVehicles',
             'vehicleCount',
             'vehiclesCount',
-            'vehicles',
+            'total_vehicles',
+            'total_vehicle',
+            'totalVehicle',
           ]) ??
-          0,
+          _firstInt(
+            _firstMap(source, const ['_count']) ?? const <String, dynamic>{},
+            const ['vehicles'],
+          ) ??
+          _listLength(source, 'vehicles') ??
+          -1,
       recentLogin: _firstDate(source, const [
         'Lastlogin',
         'lastLogin',
         'last_login',
         'lastlogin',
+        'lastLoggedIn',
+        'last_logged_in',
+        'lastLoginAt',
+        'lastLoggedInAt',
+        'last_logged_in_at',
+        'last_login_at',
         'recentLogin',
+        'recent_login',
+        'loginAt',
+        'login_at',
+        'lastSeenAt',
+        'last_seen_at',
         'lastSeen',
         'last_seen',
+        'lastSeenOn',
+        'last_seen_on',
+        'loggedInAt',
+        'logged_in_at',
+        'loginDate',
+        'login_date',
+        'loginTime',
+        'login_time',
+        'lastActivityAt',
+        'last_activity_at',
       ]),
       isActive: _parseBool(
             source['isActive'] ??
                 source['is_active'] ??
                 source['isactive'] ??
                 source['active'] ??
-                source['status'],
+                source['status'] ??
+                source['accountStatus'] ??
+                source['account_status'],
           ) ??
-          false,
+          true,
       isEmailVerified: _parseBool(
             source['isEmailVerified'] ??
                 source['isemailvarified'] ??
@@ -238,6 +270,8 @@ class SuperadminAdminDetails {
 
   SuperadminAdminDetails copyWith({
     bool? isActive,
+    int? totalVehicles,
+    Object? recentLogin = _unset,
   }) {
     return SuperadminAdminDetails(
       id: id,
@@ -248,8 +282,10 @@ class SuperadminAdminDetails {
       mobileNumber: mobileNumber,
       mobileDisplay: mobileDisplay,
       credits: credits,
-      totalVehicles: totalVehicles,
-      recentLogin: recentLogin,
+      totalVehicles: totalVehicles ?? this.totalVehicles,
+      recentLogin: identical(recentLogin, _unset)
+          ? this.recentLogin
+          : recentLogin as DateTime?,
       isActive: isActive ?? this.isActive,
       isEmailVerified: isEmailVerified,
       countryCode: countryCode,
@@ -1230,6 +1266,12 @@ int? _firstInt(Map<String, dynamic> json, List<String> keys) {
   return null;
 }
 
+int? _listLength(Map<String, dynamic> json, String key) {
+  final value = _valueForKey(json, key);
+  if (value is List) return value.length;
+  return null;
+}
+
 DateTime? _firstDate(Map<String, dynamic> json, List<String> keys) {
   for (final key in keys) {
     final value = _valueForKey(json, key);
@@ -1275,6 +1317,7 @@ bool? _parseBool(dynamic value) {
     case 'n':
     case 'inactive':
     case 'disabled':
+    case 'blocked':
       return false;
   }
   return null;

@@ -19,7 +19,7 @@ import 'widgets/admin_details_payments_tab.dart';
 import 'widgets/admin_details_profile_tab.dart';
 import 'widgets/admin_details_vehicles_tab.dart';
 
-class SuperadminAdminDetailsScreen extends ConsumerWidget {
+class SuperadminAdminDetailsScreen extends ConsumerStatefulWidget {
   const SuperadminAdminDetailsScreen({
     required this.adminId,
     this.initialAdmin,
@@ -30,13 +30,40 @@ class SuperadminAdminDetailsScreen extends ConsumerWidget {
   final SuperadminAdministrator? initialAdmin;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final provider = superadminAdminDetailsControllerProvider(adminId);
+  ConsumerState<SuperadminAdminDetailsScreen> createState() =>
+      _SuperadminAdminDetailsScreenState();
+}
+
+class _SuperadminAdminDetailsScreenState
+    extends ConsumerState<SuperadminAdminDetailsScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Seed initial admin and data from list item
+    if (widget.initialAdmin != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final controller = ref
+            .read(superadminAdminDetailsControllerProvider(widget.adminId)
+                .notifier);
+        controller.seedInitialAdmin(widget.initialAdmin);
+        controller.seedInitialData(
+          vehicleCount: widget.initialAdmin!.totalVehicles > 0
+              ? widget.initialAdmin!.totalVehicles
+              : null,
+          lastLogin: widget.initialAdmin!.lastLoginAt,
+        );
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final provider = superadminAdminDetailsControllerProvider(widget.adminId);
 
     final adminName = ref.watch(provider.select((s) => s.admin?.name ?? ''));
     final isActive = ref.watch(
       provider
-          .select((s) => s.admin?.isActive ?? initialAdmin?.isActive ?? false),
+          .select((s) => s.admin?.isActive ?? widget.initialAdmin?.isActive ?? false),
     );
     final isUpdatingStatus =
         ref.watch(provider.select((s) => s.isUpdatingStatus));
@@ -45,8 +72,8 @@ class SuperadminAdminDetailsScreen extends ConsumerWidget {
 
     final title = adminName.trim().isNotEmpty
         ? adminName
-        : (initialAdmin?.name.trim().isNotEmpty == true
-            ? initialAdmin!.name
+        : (widget.initialAdmin?.name.trim().isNotEmpty == true
+            ? widget.initialAdmin!.name
             : 'Administrator');
 
     return OpenVtsPageScaffold(
@@ -66,12 +93,12 @@ class SuperadminAdminDetailsScreen extends ConsumerWidget {
         ),
         const SizedBox(width: 4),
       ],
-      body: _Body(adminId: adminId, initialAdmin: initialAdmin),
+      body: _Body(adminId: widget.adminId, initialAdmin: widget.initialAdmin),
     );
   }
 
   Future<void> _refreshAll(WidgetRef ref) async {
-    final provider = superadminAdminDetailsControllerProvider(adminId);
+    final provider = superadminAdminDetailsControllerProvider(widget.adminId);
     final controller = ref.read(provider.notifier);
     final selectedTab = ref.read(provider.select((s) => s.selectedTab));
     await controller.refreshAdmin();
@@ -100,11 +127,11 @@ class SuperadminAdminDetailsScreen extends ConsumerWidget {
     BuildContext context,
     WidgetRef ref,
   ) async {
-    final provider = superadminAdminDetailsControllerProvider(adminId);
+    final provider = superadminAdminDetailsControllerProvider(widget.adminId);
     final controller = ref.read(provider.notifier);
     final currentlyActive = ref.read(
       provider
-          .select((s) => s.admin?.isActive ?? initialAdmin?.isActive ?? false),
+          .select((s) => s.admin?.isActive ?? widget.initialAdmin?.isActive ?? false),
     );
     final next = !currentlyActive;
     final ok = await controller.updateStatus(next);
@@ -127,13 +154,13 @@ class SuperadminAdminDetailsScreen extends ConsumerWidget {
     BuildContext context,
     WidgetRef ref,
   ) async {
-    final provider = superadminAdminDetailsControllerProvider(adminId);
+    final provider = superadminAdminDetailsControllerProvider(widget.adminId);
     final controller = ref.read(provider.notifier);
     final adminNameNow = ref.read(provider.select((s) => s.admin?.name ?? ''));
     final name = adminNameNow.trim().isNotEmpty
         ? adminNameNow
-        : (initialAdmin?.name.trim().isNotEmpty == true
-            ? initialAdmin!.name
+        : (widget.initialAdmin?.name.trim().isNotEmpty == true
+            ? widget.initialAdmin!.name
             : 'this administrator');
 
     final confirmed = await showDialog<bool>(
@@ -402,14 +429,37 @@ class _Body extends ConsumerWidget {
 // Summary card
 // ---------------------------------------------------------------------------
 
-class _SummaryCard extends StatelessWidget {
+class _SummaryCard extends ConsumerWidget {
   const _SummaryCard({required this.admin, required this.fallback});
 
   final SuperadminAdminDetails? admin;
   final SuperadminAdministrator? fallback;
 
+  int? _resolveVehicleCount(
+    SuperadminAdminDetails? admin,
+    SuperadminAdministrator? fallback,
+    SuperadminAdminDetailsState state,
+  ) {
+    // Priority 1: Explicit vehicle count from state
+    if (state.vehicleCount != null) return state.vehicleCount;
+
+    // Priority 2: Admin detail response if >= 0
+    if (admin != null && admin.totalVehicles >= 0) return admin.totalVehicles;
+
+    // Priority 3: Initial admin from list if > 0
+    if (fallback != null && fallback.totalVehicles > 0) {
+      return fallback.totalVehicles;
+    }
+
+    // Priority 4: If vehicles tab has loaded, use actual length
+    if (state.hasLoadedVehicles) return state.vehicles.length;
+
+    // Unknown
+    return null;
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final name = admin?.name.trim().isNotEmpty == true
         ? admin!.name
         : (fallback?.name ?? 'Administrator');
@@ -425,7 +475,23 @@ class _SummaryCard extends StatelessWidget {
     final isActive = admin?.isActive ?? fallback?.isActive ?? false;
     final isVerified = admin?.isEmailVerified ?? fallback?.isVerified ?? false;
     final credits = admin?.credits ?? fallback?.totalCredits ?? 0;
-    final vehicles = admin?.totalVehicles ?? fallback?.totalVehicles ?? 0;
+
+    // Get adminId to watch state
+    String? adminId;
+    if (admin?.id.trim().isNotEmpty == true) {
+      adminId = admin!.id;
+    } else if (fallback?.id.trim().isNotEmpty == true) {
+      adminId = fallback!.id;
+    }
+
+    final state = adminId != null
+        ? ref.watch(superadminAdminDetailsControllerProvider(adminId))
+        : null;
+
+    final vehicles = state != null
+        ? (_resolveVehicleCount(admin, fallback, state) ?? 0)
+        : (admin?.totalVehicles ?? fallback?.totalVehicles ?? 0);
+
     final initial = name.trim().isNotEmpty ? name.trim()[0].toUpperCase() : '?';
 
     return OpenVtsCard(
@@ -510,7 +576,11 @@ class _SummaryCard extends StatelessWidget {
           if (email.isNotEmpty || phone.isNotEmpty) ...[
             const SizedBox(height: OpenVtsSpacing.sm),
             if (email.isNotEmpty)
-              _ContactLine(icon: Icons.mail_outline_rounded, text: email),
+              _ContactLineWithVerification(
+                icon: Icons.mail_outline_rounded,
+                text: email,
+                isVerified: isVerified,
+              ),
             if (email.isNotEmpty && phone.isNotEmpty) const SizedBox(height: 4),
             if (phone.isNotEmpty)
               _ContactLine(icon: Icons.phone_outlined, text: phone),
@@ -565,6 +635,49 @@ class _ContactLine extends StatelessWidget {
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ContactLineWithVerification extends StatelessWidget {
+  const _ContactLineWithVerification({
+    required this.icon,
+    required this.text,
+    required this.isVerified,
+  });
+
+  final IconData icon;
+  final String text;
+  final bool isVerified;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 14, color: OpenVtsColors.textTertiary),
+        const SizedBox(width: 6),
+        Flexible(
+          child: Text(
+            text,
+            style: const TextStyle(
+              fontSize: 12,
+              color: OpenVtsColors.textSecondary,
+              height: 1.2,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        const SizedBox(width: 4),
+        Tooltip(
+          message: isVerified ? 'Email verified' : 'Email unverified',
+          child: Icon(
+            isVerified ? Icons.check_circle_rounded : Icons.error_outline_rounded,
+            size: 15,
+            color: isVerified ? OpenVtsColors.success : OpenVtsColors.warning,
           ),
         ),
       ],
