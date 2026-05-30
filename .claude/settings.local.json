@@ -16,7 +16,11 @@
       "Bash(flutter --version)",
       "Bash(cd e:\\\\\\\\Development\\\\\\\\OpenVTS\\\\\\\\openvts-application)",
       "Bash(cat)",
-      "Read(//tmp/**)"
+      "Read(//tmp/**)",
+      "Bash(xargs grep -l \"localization\\\\|i18n\\\\|translation\")",
+      "Bash(xargs grep -l \"localizationsDelegates\\\\|AppLocalizations\")",
+      "Bash(flutter gen-l10n *)",
+      "Bash(flutter pub *)"
     ],
     "additionalDirectories": [
       "C:\\Users\\user\\.config\\opencode"

@@ -44,6 +44,11 @@ class StorageKeys {
 
   static const themeMode = 'openvts_theme_mode';
   static const locale = 'openvts_locale';
+
+  static const appLanguageCode = 'openvts_app_language_code';
+  static const appDateFormat = 'openvts_app_date_format';
+  static const appTimeFormat = 'openvts_app_time_format';
+  static const appTimezone = 'openvts_app_timezone';
   static const superadminMapVisualSettings =
       'openvts_superadmin_map_visual_settings';
   static const superadminMapLayerId = 'openvts_superadmin_map_layer_id';

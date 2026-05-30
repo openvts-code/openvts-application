@@ -1,0 +1,88 @@
+{
+  "@@locale": "hi",
+  "appTitle": "OpenVTS",
+  "settings": "सेटिंग्स",
+  "localization": "स्थानीयकरण",
+  "language": "भाषा",
+  "theme": "थीम",
+  "dateFormat": "तारीख प्रारूप",
+  "timeFormat": "समय प्रारूप",
+  "timezone": "समय क्षेत्र",
+  "use24Hour": "24-घंटे का समय",
+  "save": "सहेजें",
+  "cancel": "रद्द करें",
+  "edit": "संपादित करें",
+  "search": "खोज",
+  "delete": "हटाएं",
+  "reset": "रीसेट करें",
+  "close": "बंद करें",
+  "back": "पीछे",
+  "next": "अगला",
+  "prev": "पिछला",
+  "loading": "लोड हो रहा है...",
+  "error": "त्रुटि",
+  "success": "सफल",
+  "warning": "चेतावनी",
+  "light": "हल्का",
+  "dark": "गहरा",
+  "system": "सिस्टम",
+  "en": "अंग्रेजी",
+  "hi": "हिंदी",
+  "ar": "अरबी",
+  "es": "स्पेनिश",
+  "fr": "फ्रेंच",
+  "pt": "पुर्तगाली",
+  "profile": "प्रोफाइल",
+  "logout": "लॉगआउट",
+  "login": "लॉगिन",
+  "register": "पंजीकरण",
+  "administrators": "प्रशासक",
+  "payments": "भुगतान",
+  "support": "समर्थन",
+  "tickets": "टिकट",
+  "home": "होम",
+  "dashboard": "डैशबोर्ड",
+  "keepEditing": "संपादन जारी रखें",
+  "discardChanges": "परिवर्तन हटाएं",
+  "unsavedChanges": "बिना सहेजे गए परिवर्तन",
+  "refresh": "ताज़ा करें",
+  "selectLanguage": "भाषा चुनें",
+  "selectTheme": "थीम चुनें",
+  "selectDateFormat": "तारीख प्रारूप चुनें",
+  "selectTimeFormat": "समय प्रारूप चुनें",
+  "selectTimezone": "समय क्षेत्र चुनें",
+  "previewDate": "पूर्वावलोकन: {date}",
+  "@previewDate": {
+    "description": "Date format preview",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "previewTime": "पूर्वावलोकन: {time}",
+  "@previewTime": {
+    "description": "Time format preview",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsUpdated": "सेटिंग्स अपडेट की गई",
+  "profileUpdated": "प्रोफाइल अपडेट की गई",
+  "localizationUpdated": "स्थानीयकरण सेटिंग्स अपडेट की गई",
+  "failedToUpdate": "अपडेट करने में विफल। कृपया दोबारा प्रयास करें।",
+  "noData": "कोई डेटा उपलब्ध नहीं है",
+  "retry": "पुनः प्रयास करें",
+  "confirmDiscard": "बिना सहेजे गए परिवर्तन हटाएं?",
+  "confirmDiscardMessage": "{tab} के अनसेव किए गए संपादन हैं। हटाने से ये परिवर्तन खो जाएंगे।",
+  "@confirmDiscardMessage": {
+    "description": "Confirmation message for discarding changes",
+    "placeholders": {
+      "tab": {
+        "type": "String"
+      }
+    }
+  }
+}

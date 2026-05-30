@@ -1,17 +1,20 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:open_vts/app_entry.dart';
 
 import 'core/notifications/mobile_push_lifecycle_observer.dart';
 import 'core/notifications/mobile_push_navigation.dart';
 import 'core/notifications/mobile_push_service.dart';
+import 'core/providers/app_preferences_provider.dart';
 import 'core/providers/core_providers.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/open_vts_theme.dart';
 import 'features/auth/controllers/auth_controller.dart';
 import 'features/auth/controllers/auth_state.dart';
+import 'l10n/app_localizations.dart';
 import 'shared/helpers/toast_helper.dart';
 
 class App extends ConsumerWidget {
@@ -21,6 +24,7 @@ class App extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(appRouterProvider);
     final themeMode = ref.watch(themeModeProvider);
+    final prefs = ref.watch(appLocalizationPreferencesProvider);
 
     return _MobilePushLifecycleScope(
       child: MaterialApp.router(
@@ -30,6 +34,21 @@ class App extends ConsumerWidget {
         theme: OpenVtsTheme.light,
         darkTheme: OpenVtsTheme.dark,
         themeMode: themeMode,
+        locale: Locale(prefs.languageCode),
+        supportedLocales: const [
+          Locale('en'),
+          Locale('hi'),
+          Locale('ar'),
+          Locale('es'),
+          Locale('fr'),
+          Locale('pt'),
+        ],
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
         routerConfig: router,
         builder: (context, child) => AppEntry(
           child: child ?? const SizedBox.shrink(),

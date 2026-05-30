@@ -1,0 +1,88 @@
+{
+  "@@locale": "pt",
+  "appTitle": "OpenVTS",
+  "settings": "Configurações",
+  "localization": "Localização",
+  "language": "Idioma",
+  "theme": "Tema",
+  "dateFormat": "Formato de Data",
+  "timeFormat": "Formato de Hora",
+  "timezone": "Fuso Horário",
+  "use24Hour": "Hora em 24 Horas",
+  "save": "Salvar",
+  "cancel": "Cancelar",
+  "edit": "Editar",
+  "search": "Pesquisar",
+  "delete": "Excluir",
+  "reset": "Redefinir",
+  "close": "Fechar",
+  "back": "Voltar",
+  "next": "Próximo",
+  "prev": "Anterior",
+  "loading": "Carregando...",
+  "error": "Erro",
+  "success": "Sucesso",
+  "warning": "Aviso",
+  "light": "Claro",
+  "dark": "Escuro",
+  "system": "Sistema",
+  "en": "Inglês",
+  "hi": "Hindi",
+  "ar": "Árabe",
+  "es": "Espanhol",
+  "fr": "Francês",
+  "pt": "Português",
+  "profile": "Perfil",
+  "logout": "Sair",
+  "login": "Entrar",
+  "register": "Registrar",
+  "administrators": "Administradores",
+  "payments": "Pagamentos",
+  "support": "Suporte",
+  "tickets": "Tickets",
+  "home": "Início",
+  "dashboard": "Painel",
+  "keepEditing": "Continuar Editando",
+  "discardChanges": "Descartar Alterações",
+  "unsavedChanges": "Alterações não salvas",
+  "refresh": "Atualizar",
+  "selectLanguage": "Selecionar Idioma",
+  "selectTheme": "Selecionar Tema",
+  "selectDateFormat": "Selecionar Formato de Data",
+  "selectTimeFormat": "Selecionar Formato de Hora",
+  "selectTimezone": "Selecionar Fuso Horário",
+  "previewDate": "Visualizar: {date}",
+  "@previewDate": {
+    "description": "Date format preview",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "previewTime": "Visualizar: {time}",
+  "@previewTime": {
+    "description": "Time format preview",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsUpdated": "Configurações atualizadas",
+  "profileUpdated": "Perfil atualizado",
+  "localizationUpdated": "Configurações de localização atualizadas",
+  "failedToUpdate": "Falha ao atualizar. Tente novamente.",
+  "noData": "Nenhum dado disponível",
+  "retry": "Tentar Novamente",
+  "confirmDiscard": "Descartar alterações não salvas?",
+  "confirmDiscardMessage": "{tab} tem edições não salvas. Descartar perderá essas alterações.",
+  "@confirmDiscardMessage": {
+    "description": "Confirmation message for discarding changes",
+    "placeholders": {
+      "tab": {
+        "type": "String"
+      }
+    }
+  }
+}

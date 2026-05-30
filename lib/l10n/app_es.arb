@@ -1,0 +1,88 @@
+{
+  "@@locale": "es",
+  "appTitle": "OpenVTS",
+  "settings": "Configuración",
+  "localization": "Localización",
+  "language": "Idioma",
+  "theme": "Tema",
+  "dateFormat": "Formato de fecha",
+  "timeFormat": "Formato de hora",
+  "timezone": "Zona horaria",
+  "use24Hour": "Hora de 24 horas",
+  "save": "Guardar",
+  "cancel": "Cancelar",
+  "edit": "Editar",
+  "search": "Buscar",
+  "delete": "Eliminar",
+  "reset": "Restablecer",
+  "close": "Cerrar",
+  "back": "Atrás",
+  "next": "Siguiente",
+  "prev": "Anterior",
+  "loading": "Cargando...",
+  "error": "Error",
+  "success": "Éxito",
+  "warning": "Advertencia",
+  "light": "Claro",
+  "dark": "Oscuro",
+  "system": "Sistema",
+  "en": "Inglés",
+  "hi": "Hindi",
+  "ar": "Árabe",
+  "es": "Español",
+  "fr": "Francés",
+  "pt": "Portugués",
+  "profile": "Perfil",
+  "logout": "Cerrar sesión",
+  "login": "Iniciar sesión",
+  "register": "Registrarse",
+  "administrators": "Administradores",
+  "payments": "Pagos",
+  "support": "Soporte",
+  "tickets": "Entradas",
+  "home": "Inicio",
+  "dashboard": "Panel",
+  "keepEditing": "Seguir editando",
+  "discardChanges": "Descartar cambios",
+  "unsavedChanges": "Cambios no guardados",
+  "refresh": "Actualizar",
+  "selectLanguage": "Seleccionar idioma",
+  "selectTheme": "Seleccionar tema",
+  "selectDateFormat": "Seleccionar formato de fecha",
+  "selectTimeFormat": "Seleccionar formato de hora",
+  "selectTimezone": "Seleccionar zona horaria",
+  "previewDate": "Vista previa: {date}",
+  "@previewDate": {
+    "description": "Date format preview",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "previewTime": "Vista previa: {time}",
+  "@previewTime": {
+    "description": "Time format preview",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsUpdated": "Configuración actualizada",
+  "profileUpdated": "Perfil actualizado",
+  "localizationUpdated": "Configuración de localización actualizada",
+  "failedToUpdate": "Error al actualizar. Por favor, intente de nuevo.",
+  "noData": "No hay datos disponibles",
+  "retry": "Reintentar",
+  "confirmDiscard": "¿Descartar cambios no guardados?",
+  "confirmDiscardMessage": "{tab} tiene ediciones sin guardar. Descartar perderá estos cambios.",
+  "@confirmDiscardMessage": {
+    "description": "Confirmation message for discarding changes",
+    "placeholders": {
+      "tab": {
+        "type": "String"
+      }
+    }
+  }
+}

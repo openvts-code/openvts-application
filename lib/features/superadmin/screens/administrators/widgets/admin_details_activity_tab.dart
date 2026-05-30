@@ -213,22 +213,7 @@ class _AdminDetailsActivityTabState
             ),
           )
         else if (state.activityLogs.isEmpty)
-          OpenVtsCard(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: OpenVtsSpacing.lg),
-              child: Center(
-                child: Text(
-                  hasAnyFilter
-                      ? 'No activity matches your filters.'
-                      : 'No activity recorded yet.',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: OpenVtsColors.textSecondary,
-                  ),
-                ),
-              ),
-            ),
-          )
+          _ActivityEmptyState(prefix: state.activityActionPrefix)
         else
           Column(
             children: [
@@ -341,7 +326,7 @@ class _GroupChips extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 32,
+      height: 36,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: groups.length,
@@ -353,9 +338,11 @@ class _GroupChips extends StatelessWidget {
             borderRadius: BorderRadius.circular(OpenVtsRadius.pill),
             onTap: () => onChanged(g.prefix),
             child: Container(
+              constraints: const BoxConstraints(minHeight: 36),
+              alignment: Alignment.center,
               padding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 6,
+                horizontal: 14,
+                vertical: 8,
               ),
               decoration: BoxDecoration(
                 color:
@@ -368,6 +355,9 @@ class _GroupChips extends StatelessWidget {
               ),
               child: Text(
                 g.label,
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
@@ -831,6 +821,107 @@ class _DetailRow extends StatelessWidget {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+class _ActivityEmptyState extends StatelessWidget {
+  const _ActivityEmptyState({required this.prefix});
+
+  final String prefix;
+
+  @override
+  Widget build(BuildContext context) {
+    final (:icon, :title, :subtitle) = _contentForPrefix(prefix);
+
+    return OpenVtsCard(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          vertical: OpenVtsSpacing.lg,
+          horizontal: OpenVtsSpacing.md,
+        ),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 28, color: OpenVtsColors.textTertiary),
+              const SizedBox(height: OpenVtsSpacing.sm),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: OpenVtsColors.textSecondary,
+                ),
+              ),
+              if (subtitle != null) ...[
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: OpenVtsColors.textTertiary,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  static ({IconData icon, String title, String? subtitle}) _contentForPrefix(
+    String prefix,
+  ) {
+    switch (prefix) {
+      case 'AUTH':
+        return (
+          icon: Icons.shield_outlined,
+          title: 'No security activity found.',
+          subtitle:
+              'Login, password, or account status changes will appear here.',
+        );
+      case 'SETTINGS':
+        return (
+          icon: Icons.settings_outlined,
+          title: 'No settings activity found.',
+          subtitle:
+              'Profile, company, or configuration changes will appear here.',
+        );
+      case 'PAYMENT':
+        return (
+          icon: Icons.account_balance_wallet_outlined,
+          title: 'No billing activity found.',
+          subtitle: 'Credit, payment, or billing updates will appear here.',
+        );
+      case 'VEHICLE':
+        return (
+          icon: Icons.directions_car_outlined,
+          title: 'No vehicle activity found.',
+          subtitle: 'Vehicle assignment or vehicle updates will appear here.',
+        );
+      case 'DRIVER':
+        return (
+          icon: Icons.person_outline,
+          title: 'No driver activity found.',
+          subtitle: 'Driver creation or driver updates will appear here.',
+        );
+      default:
+        if (prefix.isNotEmpty) {
+          return (
+            icon: Icons.search_off_outlined,
+            title: 'No activity matches your filters.',
+            subtitle: null,
+          );
+        }
+        return (
+          icon: Icons.history_outlined,
+          title: 'No activity recorded yet.',
+          subtitle: null,
+        );
+    }
+  }
+}
 
 String _humanizeAction(String action) {
   if (action.trim().isEmpty) return 'Activity';

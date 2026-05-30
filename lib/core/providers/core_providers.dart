@@ -128,6 +128,8 @@ class ThemeModeController extends StateNotifier<ThemeMode> {
     switch (localCache.getString(StorageKeys.themeMode)) {
       case 'dark':
         return ThemeMode.dark;
+      case 'system':
+        return ThemeMode.system;
       case 'light':
       default:
         return ThemeMode.light;
@@ -135,13 +137,17 @@ class ThemeModeController extends StateNotifier<ThemeMode> {
   }
 
   Future<void> setThemeMode(ThemeMode mode) async {
-    final normalizedMode =
-        mode == ThemeMode.dark ? ThemeMode.dark : ThemeMode.light;
-    await _localCache.setString(
-      StorageKeys.themeMode,
-      normalizedMode == ThemeMode.dark ? 'dark' : 'light',
-    );
-    state = normalizedMode;
+    final String stored;
+    switch (mode) {
+      case ThemeMode.dark:
+        stored = 'dark';
+      case ThemeMode.system:
+        stored = 'system';
+      case ThemeMode.light:
+        stored = 'light';
+    }
+    await _localCache.setString(StorageKeys.themeMode, stored);
+    state = mode;
   }
 
   Future<void> toggle() {

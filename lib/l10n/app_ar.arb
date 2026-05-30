@@ -1,0 +1,88 @@
+{
+  "@@locale": "ar",
+  "appTitle": "OpenVTS",
+  "settings": "الإعدادات",
+  "localization": "التوطين",
+  "language": "اللغة",
+  "theme": "المظهر",
+  "dateFormat": "تنسيق التاريخ",
+  "timeFormat": "تنسيق الوقت",
+  "timezone": "المنطقة الزمنية",
+  "use24Hour": "وقت 24 ساعة",
+  "save": "حفظ",
+  "cancel": "إلغاء",
+  "edit": "تحرير",
+  "search": "بحث",
+  "delete": "حذف",
+  "reset": "إعادة تعيين",
+  "close": "إغلاق",
+  "back": "رجوع",
+  "next": "التالي",
+  "prev": "السابق",
+  "loading": "جاري التحميل...",
+  "error": "خطأ",
+  "success": "نجاح",
+  "warning": "تحذير",
+  "light": "فاتح",
+  "dark": "داكن",
+  "system": "النظام",
+  "en": "الإنجليزية",
+  "hi": "الهندية",
+  "ar": "العربية",
+  "es": "الإسبانية",
+  "fr": "الفرنسية",
+  "pt": "البرتغالية",
+  "profile": "الملف الشخصي",
+  "logout": "تسجيل الخروج",
+  "login": "تسجيل الدخول",
+  "register": "التسجيل",
+  "administrators": "المسؤولون",
+  "payments": "المدفوعات",
+  "support": "الدعم",
+  "tickets": "التذاكر",
+  "home": "الصفحة الرئيسية",
+  "dashboard": "لوحة التحكم",
+  "keepEditing": "مواصلة التحرير",
+  "discardChanges": "تجاهل التغييرات",
+  "unsavedChanges": "تغييرات غير محفوظة",
+  "refresh": "تحديث",
+  "selectLanguage": "اختر اللغة",
+  "selectTheme": "اختر المظهر",
+  "selectDateFormat": "اختر تنسيق التاريخ",
+  "selectTimeFormat": "اختر تنسيق الوقت",
+  "selectTimezone": "اختر المنطقة الزمنية",
+  "previewDate": "معاينة: {date}",
+  "@previewDate": {
+    "description": "Date format preview",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "previewTime": "معاينة: {time}",
+  "@previewTime": {
+    "description": "Time format preview",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsUpdated": "تم تحديث الإعدادات",
+  "profileUpdated": "تم تحديث الملف الشخصي",
+  "localizationUpdated": "تم تحديث إعدادات التوطين",
+  "failedToUpdate": "فشل التحديث. يرجى المحاولة مرة أخرى.",
+  "noData": "لا توجد بيانات متاحة",
+  "retry": "إعادة محاولة",
+  "confirmDiscard": "تجاهل التغييرات غير المحفوظة؟",
+  "confirmDiscardMessage": "{tab} يحتوي على تعديلات غير محفوظة. التجاهل سيفقدك هذه التغييرات.",
+  "@confirmDiscardMessage": {
+    "description": "Confirmation message for discarding changes",
+    "placeholders": {
+      "tab": {
+        "type": "String"
+      }
+    }
+  }
+}

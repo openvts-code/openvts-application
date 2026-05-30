@@ -1,0 +1,88 @@
+{
+  "@@locale": "fr",
+  "appTitle": "OpenVTS",
+  "settings": "Paramètres",
+  "localization": "Localisation",
+  "language": "Langue",
+  "theme": "Thème",
+  "dateFormat": "Format de date",
+  "timeFormat": "Format de l'heure",
+  "timezone": "Fuseau horaire",
+  "use24Hour": "Heure 24 heures",
+  "save": "Enregistrer",
+  "cancel": "Annuler",
+  "edit": "Modifier",
+  "search": "Rechercher",
+  "delete": "Supprimer",
+  "reset": "Réinitialiser",
+  "close": "Fermer",
+  "back": "Retour",
+  "next": "Suivant",
+  "prev": "Précédent",
+  "loading": "Chargement...",
+  "error": "Erreur",
+  "success": "Succès",
+  "warning": "Avertissement",
+  "light": "Clair",
+  "dark": "Sombre",
+  "system": "Système",
+  "en": "Anglais",
+  "hi": "Hindi",
+  "ar": "Arabe",
+  "es": "Espagnol",
+  "fr": "Français",
+  "pt": "Portugais",
+  "profile": "Profil",
+  "logout": "Déconnexion",
+  "login": "Connexion",
+  "register": "S'inscrire",
+  "administrators": "Administrateurs",
+  "payments": "Paiements",
+  "support": "Support",
+  "tickets": "Tickets",
+  "home": "Accueil",
+  "dashboard": "Tableau de bord",
+  "keepEditing": "Continuer la modification",
+  "discardChanges": "Abandonner les modifications",
+  "unsavedChanges": "Modifications non enregistrées",
+  "refresh": "Actualiser",
+  "selectLanguage": "Sélectionner une langue",
+  "selectTheme": "Sélectionner un thème",
+  "selectDateFormat": "Sélectionner un format de date",
+  "selectTimeFormat": "Sélectionner un format d'heure",
+  "selectTimezone": "Sélectionner un fuseau horaire",
+  "previewDate": "Aperçu: {date}",
+  "@previewDate": {
+    "description": "Date format preview",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "previewTime": "Aperçu: {time}",
+  "@previewTime": {
+    "description": "Time format preview",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsUpdated": "Paramètres mis à jour",
+  "profileUpdated": "Profil mis à jour",
+  "localizationUpdated": "Paramètres de localisation mis à jour",
+  "failedToUpdate": "Échec de la mise à jour. Veuillez réessayer.",
+  "noData": "Aucune donnée disponible",
+  "retry": "Réessayer",
+  "confirmDiscard": "Abandonner les modifications non enregistrées?",
+  "confirmDiscardMessage": "{tab} contient des modifications non enregistrées. L'abandon perdra ces modifications.",
+  "@confirmDiscardMessage": {
+    "description": "Confirmation message for discarding changes",
+    "placeholders": {
+      "tab": {
+        "type": "String"
+      }
+    }
+  }
+}

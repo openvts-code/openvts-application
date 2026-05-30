@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/notifications/mobile_push_controller.dart';
 import '../../../core/notifications/mobile_push_perf.dart';
 import '../../../core/performance/open_vts_perf.dart';
+import '../../../core/providers/app_preferences_provider.dart';
 import '../../../core/providers/core_providers.dart';
 import '../../../core/storage/token_storage.dart';
 import '../../../shared/models/user_role.dart';
@@ -25,6 +26,8 @@ final authControllerProvider =
     authService: ref.watch(authServiceProvider),
     mobilePushController: ref.watch(mobilePushControllerProvider.notifier),
     tokenStorage: ref.watch(tokenStorageProvider),
+    appPreferencesCtrl:
+        ref.watch(appLocalizationPreferencesProvider.notifier),
   );
 });
 
@@ -33,14 +36,17 @@ class AuthController extends StateNotifier<AuthState> {
     required AuthService authService,
     required MobilePushController mobilePushController,
     required TokenStorage tokenStorage,
+    required AppLocalizationPreferencesController appPreferencesCtrl,
   })  : _authService = authService,
         _mobilePushController = mobilePushController,
         _tokenStorage = tokenStorage,
+        _appPreferencesCtrl = appPreferencesCtrl,
         super(const AuthState.initial());
 
   final AuthService _authService;
   final MobilePushController _mobilePushController;
   final TokenStorage _tokenStorage;
+  final AppLocalizationPreferencesController _appPreferencesCtrl;
 
   CurrentUser? get currentUser => state.user;
 
@@ -149,6 +155,9 @@ class AuthController extends StateNotifier<AuthState> {
 
     state = AuthState.authenticated(session.user);
     _mobilePushController.updateAuthenticationState(isAuthenticated: true);
+
+    // Rehydrate localization preferences from LocalCache on session restore
+    _appPreferencesCtrl.rehydrate();
   }
 
   void _setUnauthenticated({String? errorMessage}) {

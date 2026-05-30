@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../../core/providers/app_preferences_provider.dart';
 import '../../../../../core/theme/open_vts_colors.dart';
 import '../../../../../core/theme/open_vts_radius.dart';
 import '../../../../../core/theme/open_vts_spacing.dart';
@@ -114,6 +115,16 @@ class _LocalizationSettingsSectionState
     final ok = await _controller.updateLocalization(request);
     if (!mounted) return;
     if (ok) {
+      await ref
+          .read(appLocalizationPreferencesProvider.notifier)
+          .applyFromAdminSettings(
+            language: request.language,
+            dateFormat: request.dateFormat,
+            use24Hour: request.use24Hour,
+            theme: request.theme.apiValue,
+            timezoneOffset: request.timezoneOffset,
+          );
+      if (!mounted) return;
       ToastHelper.showSuccess('Localization saved');
       await _controller.loadLocalization();
       if (mounted) {

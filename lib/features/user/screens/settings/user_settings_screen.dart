@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/providers/app_preferences_provider.dart';
 import '../../../../core/theme/open_vts_colors.dart';
 import '../../../../core/theme/open_vts_radius.dart';
 import '../../../../core/theme/open_vts_spacing.dart';
@@ -107,6 +108,22 @@ class _UserSettingsScreenState extends ConsumerState<UserSettingsScreen> {
           : await controller.saveLocalization();
       if (!mounted || !saved) {
         return;
+      }
+
+      if (!isProfileTab) {
+        final loc = ref.read(userSettingsControllerProvider).localization;
+        if (loc != null) {
+          await ref
+              .read(appLocalizationPreferencesProvider.notifier)
+              .applyFromUserSettings(
+                languageCode: loc.language,
+                dateFormat: loc.dateFormat,
+                timeFormat: loc.use24Hour ? '24H' : '12H',
+                theme: loc.theme.apiValue,
+                timezone: loc.timezoneOffset,
+              );
+        }
+        if (!mounted) return;
       }
 
       ToastHelper.showSuccess(
