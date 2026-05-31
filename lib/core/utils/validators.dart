@@ -4,6 +4,19 @@ class Validators {
   static final _emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
   static final _numericRegex = RegExp(r'^\d+$');
 
+  // Character limits matching backend constraints
+  static const int maxNameLength = 120;
+  static const int maxEmailLength = 254;
+  static const int maxUsernameLength = 50;
+  static const int maxPasswordLength = 100;
+  static const int minPasswordLength = 8;
+  static const int maxMobilePrefixLength = 10;
+  static const int maxMobileNumberLength = 20;
+  static const int minMobileNumberLength = 7;
+  static const int maxCompanyNameLength = 200;
+  static const int maxAddressLength = 200;
+  static const int maxPincodeLength = 20;
+
   // ---------------------------------------------------------------------------
   // Generic
   // ---------------------------------------------------------------------------
@@ -18,6 +31,9 @@ class Validators {
   static String? email(String? value) {
     final s = value?.trim() ?? '';
     if (s.isEmpty) return 'Email is required';
+    if (s.length > maxEmailLength) {
+      return 'Email must be $maxEmailLength characters or fewer';
+    }
     if (!_emailRegex.hasMatch(s)) return 'Enter a valid email address';
     return null;
   }
@@ -27,7 +43,12 @@ class Validators {
   // ---------------------------------------------------------------------------
 
   static String? adminName(String? value) {
-    return required(value, fieldName: 'Full name');
+    final s = value?.trim() ?? '';
+    if (s.isEmpty) return 'Full name is required';
+    if (s.length > maxNameLength) {
+      return 'Full name must be $maxNameLength characters or fewer';
+    }
+    return null;
   }
 
   static String? adminEmailRequired(String? value) {
@@ -42,13 +63,23 @@ class Validators {
   }
 
   static String? adminUsername(String? value) {
-    return required(value, fieldName: 'Username');
+    final s = value?.trim() ?? '';
+    if (s.isEmpty) return 'Username is required';
+    if (s.length > maxUsernameLength) {
+      return 'Username must be $maxUsernameLength characters or fewer';
+    }
+    return null;
   }
 
   static String? adminPassword(String? value) {
     final s = value?.trim() ?? '';
     if (s.isEmpty) return 'Password is required';
-    if (s.length < 6) return 'Minimum 6 characters';
+    if (s.length < minPasswordLength) {
+      return 'Minimum $minPasswordLength characters';
+    }
+    if (s.length > maxPasswordLength) {
+      return 'Password must be $maxPasswordLength characters or fewer';
+    }
     return null;
   }
 
@@ -59,29 +90,54 @@ class Validators {
   }
 
   static String? companyName(String? value) {
-    return required(value, fieldName: 'Company name');
+    final s = value?.trim() ?? '';
+    if (s.isEmpty) return 'Company name is required';
+    if (s.length > maxCompanyNameLength) {
+      return 'Company name must be $maxCompanyNameLength characters or fewer';
+    }
+    return null;
   }
 
   static String? address(String? value) {
-    return required(value, fieldName: 'Address');
+    final s = value?.trim() ?? '';
+    if (s.isEmpty) return 'Address is required';
+    if (s.length > maxAddressLength) {
+      return 'Address must be $maxAddressLength characters or fewer';
+    }
+    return null;
   }
 
   static String? mobilePrefix(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return 'Mobile prefix is required';
+    final s = value?.trim() ?? '';
+    if (s.isEmpty) return 'Mobile prefix is required';
+    if (s.length > maxMobilePrefixLength) {
+      return 'Mobile prefix must be $maxMobilePrefixLength characters or fewer';
     }
     return null;
   }
 
   static String? mobileNumber(String? value) {
-    return required(value, fieldName: 'Mobile number');
+    final s = value?.trim() ?? '';
+    if (s.isEmpty) return 'Mobile number is required';
+    if (!_numericRegex.hasMatch(s)) {
+      return 'Mobile number must be numeric';
+    }
+    if (s.length < minMobileNumberLength) {
+      return 'Mobile number must be at least $minMobileNumberLength digits';
+    }
+    if (s.length > maxMobileNumberLength) {
+      return 'Mobile number must be $maxMobileNumberLength digits or fewer';
+    }
+    return null;
   }
 
   static String? pincodeOptional(String? value) {
     final s = value?.trim() ?? '';
     if (s.isEmpty) return null;
     if (!_numericRegex.hasMatch(s)) return 'Pincode must be numeric';
-    if (s.length > 10) return 'Pincode is too long';
+    if (s.length > maxPincodeLength) {
+      return 'Pincode must be $maxPincodeLength characters or fewer';
+    }
     return null;
   }
 

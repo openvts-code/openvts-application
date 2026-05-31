@@ -18,6 +18,7 @@ class OpenVtsTextField extends StatelessWidget {
     this.suffixIcon,
     this.onFieldSubmitted,
     this.maxLines = 1,
+    this.maxLength,
     super.key,
   });
 
@@ -33,6 +34,7 @@ class OpenVtsTextField extends StatelessWidget {
   final Widget? suffixIcon;
   final ValueChanged<String>? onFieldSubmitted;
   final int maxLines;
+  final int? maxLength;
 
   @override
   Widget build(BuildContext context) {
@@ -47,6 +49,7 @@ class OpenVtsTextField extends StatelessWidget {
           obscureText: obscureText,
           keyboardType: keyboardType,
           maxLines: maxLines,
+          maxLength: maxLength,
           textInputAction: textInputAction,
           autofillHints: autofillHints,
           onFieldSubmitted: onFieldSubmitted,

@@ -209,8 +209,8 @@ class _AdminCreateUserScreenState extends ConsumerState<AdminCreateUserScreen> {
           hintText: 'Jane Smith',
           controller: _nameController,
           textInputAction: TextInputAction.next,
-          validator: (value) =>
-              Validators.required(value, fieldName: 'Full name'),
+          maxLength: Validators.maxNameLength,
+          validator: Validators.adminName,
         ),
         OpenVtsTextField(
           label: 'Email',
@@ -218,6 +218,7 @@ class _AdminCreateUserScreenState extends ConsumerState<AdminCreateUserScreen> {
           controller: _emailController,
           keyboardType: TextInputType.emailAddress,
           textInputAction: TextInputAction.next,
+          maxLength: Validators.maxEmailLength,
           validator: Validators.email,
         ),
         LayoutBuilder(
@@ -244,10 +245,8 @@ class _AdminCreateUserScreenState extends ConsumerState<AdminCreateUserScreen> {
                     controller: _mobileNumberController,
                     keyboardType: TextInputType.phone,
                     textInputAction: TextInputAction.next,
-                    validator: (value) => Validators.required(
-                      value,
-                      fieldName: 'Mobile number',
-                    ),
+                    maxLength: Validators.maxMobileNumberLength,
+                    validator: Validators.mobileNumber,
                   ),
                 ],
               );
@@ -278,10 +277,8 @@ class _AdminCreateUserScreenState extends ConsumerState<AdminCreateUserScreen> {
                     controller: _mobileNumberController,
                     keyboardType: TextInputType.phone,
                     textInputAction: TextInputAction.next,
-                    validator: (value) => Validators.required(
-                      value,
-                      fieldName: 'Mobile number',
-                    ),
+                    maxLength: Validators.maxMobileNumberLength,
+                    validator: Validators.mobileNumber,
                   ),
                 ),
               ],
@@ -303,15 +300,16 @@ class _AdminCreateUserScreenState extends ConsumerState<AdminCreateUserScreen> {
           hintText: 'janesmith',
           controller: _usernameController,
           textInputAction: TextInputAction.next,
-          validator: (value) =>
-              Validators.required(value, fieldName: 'Username'),
+          maxLength: Validators.maxUsernameLength,
+          validator: Validators.adminUsername,
         ),
         OpenVtsTextField(
           label: 'Password',
-          hintText: 'Minimum 8 characters',
+          hintText: 'Minimum ${Validators.minPasswordLength} characters',
           controller: _passwordController,
           obscureText: _obscurePassword,
           textInputAction: TextInputAction.next,
+          maxLength: Validators.maxPasswordLength,
           suffixIcon: IconButton(
             tooltip: _obscurePassword ? 'Show password' : 'Hide password',
             onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
@@ -323,17 +321,7 @@ class _AdminCreateUserScreenState extends ConsumerState<AdminCreateUserScreen> {
               color: OpenVtsColors.textSecondary,
             ),
           ),
-          validator: (value) {
-            final requiredMessage =
-                Validators.required(value, fieldName: 'Password');
-            if (requiredMessage != null) {
-              return requiredMessage;
-            }
-            if ((value?.trim().length ?? 0) < 8) {
-              return 'Password must be at least 8 characters';
-            }
-            return null;
-          },
+          validator: Validators.adminPassword,
         ),
         OpenVtsTextField(
           label: 'Confirm password',
@@ -341,6 +329,7 @@ class _AdminCreateUserScreenState extends ConsumerState<AdminCreateUserScreen> {
           controller: _confirmPasswordController,
           obscureText: _obscureConfirmPassword,
           textInputAction: TextInputAction.next,
+          maxLength: Validators.maxPasswordLength,
           suffixIcon: IconButton(
             tooltip: _obscureConfirmPassword
                 ? 'Show password'
@@ -356,15 +345,7 @@ class _AdminCreateUserScreenState extends ConsumerState<AdminCreateUserScreen> {
               color: OpenVtsColors.textSecondary,
             ),
           ),
-          validator: (value) {
-            if (value == null || value.isEmpty) {
-              return 'Please confirm the password';
-            }
-            if (value != _passwordController.text) {
-              return 'Passwords do not match';
-            }
-            return null;
-          },
+          validator: (value) => Validators.adminConfirmPassword(value, _passwordController.text),
         ),
       ],
     );
@@ -381,8 +362,8 @@ class _AdminCreateUserScreenState extends ConsumerState<AdminCreateUserScreen> {
           hintText: 'Acme Logistics Pvt. Ltd.',
           controller: _companyController,
           textInputAction: TextInputAction.next,
-          validator: (value) =>
-              Validators.required(value, fieldName: 'Company name'),
+          maxLength: Validators.maxCompanyNameLength,
+          validator: Validators.companyName,
         ),
         OpenVtsTextField(
           label: 'Address',
@@ -390,8 +371,8 @@ class _AdminCreateUserScreenState extends ConsumerState<AdminCreateUserScreen> {
           controller: _addressController,
           maxLines: 3,
           textInputAction: TextInputAction.newline,
-          validator: (value) =>
-              Validators.required(value, fieldName: 'Address'),
+          maxLength: Validators.maxAddressLength,
+          validator: Validators.address,
         ),
       ],
     );
