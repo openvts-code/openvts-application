@@ -23,6 +23,7 @@ class SuperadminAdminDetails {
     required this.totalVehicles,
     required this.recentLogin,
     required this.isActive,
+    required this.hasExplicitActiveStatus,
     required this.isEmailVerified,
     required this.countryCode,
     required this.stateCode,
@@ -47,6 +48,7 @@ class SuperadminAdminDetails {
   final int totalVehicles;
   final DateTime? recentLogin;
   final bool isActive;
+  final bool hasExplicitActiveStatus;
   final bool isEmailVerified;
   final String countryCode;
   final String stateCode;
@@ -208,7 +210,17 @@ class SuperadminAdminDetails {
                 source['accountStatus'] ??
                 source['account_status'],
           ) ??
-          true,
+          false,
+      hasExplicitActiveStatus: _parseBool(
+            source['isActive'] ??
+                source['is_active'] ??
+                source['isactive'] ??
+                source['active'] ??
+                source['status'] ??
+                source['accountStatus'] ??
+                source['account_status'],
+          ) !=
+          null,
       isEmailVerified: _parseBool(
             source['isEmailVerified'] ??
                 source['isemailvarified'] ??
@@ -270,6 +282,7 @@ class SuperadminAdminDetails {
 
   SuperadminAdminDetails copyWith({
     bool? isActive,
+    bool? hasExplicitActiveStatus,
     int? totalVehicles,
     Object? recentLogin = _unset,
   }) {
@@ -287,6 +300,8 @@ class SuperadminAdminDetails {
           ? this.recentLogin
           : recentLogin as DateTime?,
       isActive: isActive ?? this.isActive,
+      hasExplicitActiveStatus:
+          hasExplicitActiveStatus ?? this.hasExplicitActiveStatus,
       isEmailVerified: isEmailVerified,
       countryCode: countryCode,
       stateCode: stateCode,

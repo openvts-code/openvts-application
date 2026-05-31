@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 
 import '../../../../core/theme/open_vts_colors.dart';
 import '../../../../core/theme/open_vts_radius.dart';
 import '../../../../core/theme/open_vts_spacing.dart';
 import '../../../../core/theme/open_vts_typography.dart';
+import '../../../../core/utils/date_time_formatter.dart';
 import '../../../../shared/widgets/open_vts_card.dart';
 import '../../../../shared/widgets/open_vts_empty_state.dart';
 import '../../../../shared/widgets/open_vts_error_view.dart';
@@ -15,8 +15,7 @@ import '../../../../shared/widgets/open_vts_search_field.dart';
 import '../../controllers/superadmin_providers.dart';
 import '../../models/superadmin_vehicle_model.dart';
 
-final DateFormat _vehicleDateFormatter = DateFormat('dd MMM yyyy');
-final DateFormat _vehicleTimeFormatter = DateFormat('HH:mm');
+const DateTimeFormatter _vehicleFmt = DateTimeFormatter();
 const int _initialVisibleVehicleCount = 20;
 
 class SuperadminVehiclesScreen extends ConsumerStatefulWidget {
@@ -332,7 +331,7 @@ class _VehicleDetailsPanel extends StatelessWidget {
     final localDateTime = vehicle.createdAt?.toLocal();
     final createdLabel = localDateTime == null
         ? '—'
-        : '${_vehicleDateFormatter.format(localDateTime)}  ${_vehicleTimeFormatter.format(localDateTime)}';
+        : '${_vehicleFmt.formatDate(localDateTime)}  ${_vehicleFmt.formatTime(localDateTime)}';
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -708,10 +707,10 @@ class _VehicleTimestamp extends StatelessWidget {
     final localDateTime = createdAt?.toLocal();
     final dateLabel = localDateTime == null
         ? '—'
-        : _vehicleDateFormatter.format(localDateTime);
+        : _vehicleFmt.formatDate(localDateTime);
     final timeLabel = localDateTime == null
         ? '—'
-        : _vehicleTimeFormatter.format(localDateTime);
+        : _vehicleFmt.formatTime(localDateTime);
 
     return Row(
       mainAxisSize: MainAxisSize.min,

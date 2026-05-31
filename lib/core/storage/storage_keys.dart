@@ -12,18 +12,12 @@ class StorageKeys {
 
   static const mobilePushDeviceId = 'openvts_mobile_push_device_id';
   static const mobilePushFcmToken = 'openvts_mobile_push_fcm_token';
-  static const mobilePushRegisteredToken =
-      'openvts_mobile_push_registered_token';
-  static const mobilePushRegisteredUserId =
-      'openvts_mobile_push_registered_user_id';
-  static const mobilePushRegisteredPlatform =
-      'openvts_mobile_push_registered_platform';
-  static const mobilePushFirebaseConfigJson =
-      'openvts_mobile_push_firebase_config_json';
-  static const mobilePushFirebaseConfigVersion =
-      'openvts_mobile_push_firebase_config_version';
-  static const mobilePushLastPermissionStatus =
-      'openvts_mobile_push_last_permission_status';
+  static const mobilePushRegisteredToken = 'openvts_mobile_push_registered_token';
+  static const mobilePushRegisteredUserId = 'openvts_mobile_push_registered_user_id';
+  static const mobilePushRegisteredPlatform = 'openvts_mobile_push_registered_platform';
+  static const mobilePushFirebaseConfigJson = 'openvts_mobile_push_firebase_config_json';
+  static const mobilePushFirebaseConfigVersion = 'openvts_mobile_push_firebase_config_version';
+  static const mobilePushLastPermissionStatus = 'openvts_mobile_push_last_permission_status';
   static const mobilePushLastInitError = 'openvts_mobile_push_last_init_error';
 
   static String accessTokenForRole(String role) {
@@ -49,8 +43,9 @@ class StorageKeys {
   static const appDateFormat = 'openvts_app_date_format';
   static const appTimeFormat = 'openvts_app_time_format';
   static const appTimezone = 'openvts_app_timezone';
-  static const superadminMapVisualSettings =
-      'openvts_superadmin_map_visual_settings';
+  static const appLayoutDirection = 'openvts_app_layout_direction';
+  static const appUnits = 'openvts_app_units';
+  static const superadminMapVisualSettings = 'openvts_superadmin_map_visual_settings';
   static const superadminMapLayerId = 'openvts_superadmin_map_layer_id';
 
   static const adminMapVisualSettings = 'openvts_admin_map_visual_settings';

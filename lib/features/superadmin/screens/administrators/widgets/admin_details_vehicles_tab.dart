@@ -2,11 +2,11 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 
 import '../../../../../core/theme/open_vts_colors.dart';
 import '../../../../../core/theme/open_vts_radius.dart';
 import '../../../../../core/theme/open_vts_spacing.dart';
+import '../../../../../core/utils/date_time_formatter.dart';
 import '../../../../../shared/widgets/open_vts_card.dart';
 import '../../../../../shared/widgets/open_vts_error_view.dart';
 import '../../../../../shared/widgets/open_vts_loader.dart';
@@ -462,7 +462,7 @@ class _VehicleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fmt = DateFormat('dd MMM yyyy');
+    const fmt = DateTimeFormatter();
     return OpenVtsCard(
       padding: const EdgeInsets.symmetric(
         horizontal: OpenVtsSpacing.sm,
@@ -530,7 +530,7 @@ class _VehicleCard extends StatelessWidget {
               if (vehicle.createdAt != null)
                 _MetaChip(
                   icon: Icons.calendar_today_outlined,
-                  label: 'Added ${fmt.format(vehicle.createdAt!)}',
+                  label: 'Added ${fmt.formatDate(vehicle.createdAt!)}',
                 ),
             ],
           ),
@@ -540,17 +540,17 @@ class _VehicleCard extends StatelessWidget {
   }
 }
 
-String _expiryLabel(DateTime? expiry, DateFormat fmt) {
+String _expiryLabel(DateTime? expiry, DateTimeFormatter fmt) {
   if (expiry == null) return 'Expiry not set';
   final now = DateTime.now();
   final today = DateTime(now.year, now.month, now.day);
   final dueDay = DateTime(expiry.year, expiry.month, expiry.day);
   final diffDays = dueDay.difference(today).inDays;
-  if (diffDays < 0) return 'Expired ${fmt.format(expiry)}';
+  if (diffDays < 0) return 'Expired ${fmt.formatDate(expiry)}';
   if (diffDays == 0) return 'Expires today';
   if (diffDays == 1) return 'Expires tomorrow';
   if (diffDays <= 30) return 'Expires in $diffDays days';
-  return 'Expires ${fmt.format(expiry)}';
+  return 'Expires ${fmt.formatDate(expiry)}';
 }
 
 class _VehicleIcon extends StatelessWidget {

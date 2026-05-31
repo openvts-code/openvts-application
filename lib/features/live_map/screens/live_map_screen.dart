@@ -14,6 +14,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/api/api_exception.dart';
 import '../../../core/providers/core_providers.dart';
 import '../../../core/socket/socket_service.dart';
+import '../../../core/utils/date_time_formatter.dart';
 import '../../../shared/helpers/toast_helper.dart';
 import '../../../shared/models/vehicle_summary.dart';
 import '../../../shared/widgets/open_vts_bottom_sheet.dart';
@@ -33,14 +34,7 @@ part 'panels/map_drawers.dart';
 part 'replay/replay_widgets.dart';
 part 'widgets/map_controls.dart';
 
-final DateFormat _mapVehicleTimestampFormatter = DateFormat(
-  'dd MMM yyyy HH:mm:ss',
-);
-final DateFormat _mapAlertTimestampFormatter = DateFormat('dd MMM yyyy HH:mm');
-final DateFormat _mapHistoryRangeFormatter = DateFormat('dd MMM HH:mm');
-final DateFormat _mapHistoryTimelineTimeFormatter = DateFormat('HH:mm:ss');
-final DateFormat _mapHistoryTimelineDateFormatter = DateFormat('dd MMM yyyy');
-final DateFormat _mapReplayTimeFormatter = DateFormat('HH:mm:ss');
+const DateTimeFormatter _mapFmt = DateTimeFormatter();
 const Color _mapActionInkColor = Color(0xFF111827);
 const double _mapDrawerMinChildSize = 0.28;
 const double _mapDrawerInitialChildSize = 0.42;
@@ -8429,8 +8423,8 @@ List<VehicleSummary> _historySelectableVehicles(List<VehicleSummary> vehicles) {
 }
 
 String _formatHistoryRequestSummary(SuperadminVehicleHistoryRequest request) {
-  final start = _mapHistoryRangeFormatter.format(request.from.toLocal());
-  final end = _mapHistoryRangeFormatter.format(request.to.toLocal());
+  final start = _mapFmt.formatDateTime(request.from.toLocal());
+  final end = _mapFmt.formatDateTime(request.to.toLocal());
   return '$start - $end • Stops >= ${request.stopMinutes} min';
 }
 
@@ -9187,7 +9181,7 @@ String _formatReplayControlTime(DateTime? value) {
     return '--';
   }
 
-  return _mapReplayTimeFormatter.format(value.toLocal());
+  return _mapFmt.formatTime(value.toLocal());
 }
 
 String _formatReplayDistanceKm(double? value) {
@@ -9295,16 +9289,16 @@ String _formatHistoryPointTimestamp(DateTime? timestamp) {
   }
 
   final local = timestamp.toLocal();
-  return '${_mapHistoryTimelineTimeFormatter.format(local)} · ${_mapHistoryTimelineDateFormatter.format(local)}';
+  return '${_mapFmt.formatTime(local)} · ${_mapFmt.formatDate(local)}';
 }
 
 String _formatHistoryTimeRange(DateTime? start, DateTime? end) {
   final startText = start == null
       ? '--'
-      : _mapHistoryTimelineTimeFormatter.format(start.toLocal());
+      : _mapFmt.formatTime(start.toLocal());
   final endText = end == null
       ? '--'
-      : _mapHistoryTimelineTimeFormatter.format(end.toLocal());
+      : _mapFmt.formatTime(end.toLocal());
   return '$startText → $endText';
 }
 
@@ -9539,7 +9533,7 @@ String _buildAlertMeta(AppNotification alert) {
     if (alert.contextLabel != null && alert.contextLabel!.trim().isNotEmpty)
       alert.contextLabel!.trim(),
     if (alert.createdAt != null)
-      _mapAlertTimestampFormatter.format(alert.createdAt!.toLocal()),
+      _mapFmt.formatDateTime(alert.createdAt!.toLocal()),
   ];
 
   if (parts.isNotEmpty) {
@@ -10884,7 +10878,7 @@ String _vehicleCommandConnectionHint(VehicleSummary vehicle) {
 
 String _formatVehicleListSubtitle(VehicleSummary vehicle) {
   if (vehicle.updatedAt != null) {
-    return _mapVehicleTimestampFormatter.format(vehicle.updatedAt!.toLocal());
+    return _mapFmt.formatDateTime(vehicle.updatedAt!.toLocal());
   }
 
   if (vehicle.plateNumber.isNotEmpty) {
@@ -10899,7 +10893,7 @@ String _buildVehicleDrawerSubtitle(VehicleSummary vehicle) {
   final updatedAt = vehicle.updatedAt;
 
   if (plateNumber.isNotEmpty && updatedAt != null) {
-    return '$plateNumber • ${_mapVehicleTimestampFormatter.format(updatedAt.toLocal())}';
+    return '$plateNumber • ${_mapFmt.formatDateTime(updatedAt.toLocal())}';
   }
 
   if (plateNumber.isNotEmpty) {
@@ -10907,7 +10901,7 @@ String _buildVehicleDrawerSubtitle(VehicleSummary vehicle) {
   }
 
   if (updatedAt != null) {
-    return _mapVehicleTimestampFormatter.format(updatedAt.toLocal());
+    return _mapFmt.formatDateTime(updatedAt.toLocal());
   }
 
   return 'Vehicle overview';
@@ -11131,7 +11125,7 @@ String _formatVehicleEventTime(DateTime? value) {
     return '--:--';
   }
 
-  return _mapHistoryTimelineTimeFormatter.format(value.toLocal());
+  return _mapFmt.formatTime(value.toLocal());
 }
 
 String _formatVehicleEventDateTime(DateTime? value) {
@@ -11139,7 +11133,7 @@ String _formatVehicleEventDateTime(DateTime? value) {
     return '--';
   }
 
-  return _mapAlertTimestampFormatter.format(value.toLocal());
+  return _mapFmt.formatDateTime(value.toLocal());
 }
 
 Map<String, Object?> _vehicleSensorTelemetryValues(VehicleSummary vehicle) {
@@ -11422,7 +11416,7 @@ DateTime? _vehicleSensorTelemetryUpdatedAt(VehicleSummary vehicle) {
 }
 
 String _formatVehicleSensorUpdatedAt(DateTime value) {
-  return _mapAlertTimestampFormatter.format(value.toLocal());
+  return _mapFmt.formatDateTime(value.toLocal());
 }
 
 String _formatVehicleLogTime(DateTime? value) {
@@ -11430,7 +11424,7 @@ String _formatVehicleLogTime(DateTime? value) {
     return '--:--:--';
   }
 
-  return _mapReplayTimeFormatter.format(value.toLocal());
+  return _mapFmt.formatTime(value.toLocal());
 }
 
 String _formatVehicleLogDateTime(DateTime? value) {
@@ -11438,7 +11432,7 @@ String _formatVehicleLogDateTime(DateTime? value) {
     return '--';
   }
 
-  return _mapVehicleTimestampFormatter.format(value.toLocal());
+  return _mapFmt.formatDateTime(value.toLocal());
 }
 
 String _formatVehicleLogSpeed(double? value) {

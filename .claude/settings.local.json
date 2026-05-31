@@ -20,7 +20,9 @@
       "Bash(xargs grep -l \"localization\\\\|i18n\\\\|translation\")",
       "Bash(xargs grep -l \"localizationsDelegates\\\\|AppLocalizations\")",
       "Bash(flutter gen-l10n *)",
-      "Bash(flutter pub *)"
+      "Bash(flutter pub *)",
+      "Bash(grep -E \"\\\\.dart$\")",
+      "Bash(grep -rn \"TextDirection\\\\\\\\.ltr\" d:/development/openvts-application-main/lib --include=\"*.dart\")"
     ],
     "additionalDirectories": [
       "C:\\Users\\user\\.config\\opencode"

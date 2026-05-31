@@ -61,10 +61,7 @@ class _SuperadminAdminDetailsScreenState
     final provider = superadminAdminDetailsControllerProvider(widget.adminId);
 
     final adminName = ref.watch(provider.select((s) => s.admin?.name ?? ''));
-    final isActive = ref.watch(
-      provider
-          .select((s) => s.admin?.isActive ?? widget.initialAdmin?.isActive ?? false),
-    );
+    final isActive = ref.watch(provider.select((s) => s.effectiveIsActive));
     final isUpdatingStatus =
         ref.watch(provider.select((s) => s.isUpdatingStatus));
     final isDeletingAdmin =
@@ -129,10 +126,7 @@ class _SuperadminAdminDetailsScreenState
   ) async {
     final provider = superadminAdminDetailsControllerProvider(widget.adminId);
     final controller = ref.read(provider.notifier);
-    final currentlyActive = ref.read(
-      provider
-          .select((s) => s.admin?.isActive ?? widget.initialAdmin?.isActive ?? false),
-    );
+    final currentlyActive = ref.read(provider.select((s) => s.effectiveIsActive));
     final next = !currentlyActive;
     final ok = await controller.updateStatus(next);
     if (!context.mounted) return;
@@ -472,24 +466,25 @@ class _SummaryCard extends ConsumerWidget {
     final phone = admin?.mobileDisplay.trim().isNotEmpty == true
         ? admin!.mobileDisplay
         : (fallback?.phoneDisplay ?? '');
-    final isActive = admin?.isActive ?? fallback?.isActive ?? false;
+
+    // Get adminId to watch effectiveIsActive
+    String? resolvedAdminId;
+    if (admin?.id.trim().isNotEmpty == true) {
+      resolvedAdminId = admin!.id;
+    } else if (fallback?.id.trim().isNotEmpty == true) {
+      resolvedAdminId = fallback!.id;
+    }
+
+    final controllerState = resolvedAdminId != null
+        ? ref.watch(superadminAdminDetailsControllerProvider(resolvedAdminId))
+        : null;
+
+    final isActive = controllerState?.effectiveIsActive ?? fallback?.isActive ?? false;
     final isVerified = admin?.isEmailVerified ?? fallback?.isVerified ?? false;
     final credits = admin?.credits ?? fallback?.totalCredits ?? 0;
 
-    // Get adminId to watch state
-    String? adminId;
-    if (admin?.id.trim().isNotEmpty == true) {
-      adminId = admin!.id;
-    } else if (fallback?.id.trim().isNotEmpty == true) {
-      adminId = fallback!.id;
-    }
-
-    final state = adminId != null
-        ? ref.watch(superadminAdminDetailsControllerProvider(adminId))
-        : null;
-
-    final vehicles = state != null
-        ? (_resolveVehicleCount(admin, fallback, state) ?? 0)
+    final vehicles = controllerState != null
+        ? (_resolveVehicleCount(admin, fallback, controllerState) ?? 0)
         : (admin?.totalVehicles ?? fallback?.totalVehicles ?? 0);
 
     final initial = name.trim().isNotEmpty ? name.trim()[0].toUpperCase() : '?';

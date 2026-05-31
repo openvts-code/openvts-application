@@ -65,7 +65,7 @@ class AdminUserDetailsState {
   AdminUserDetailsState.initial({
     required this.userId,
     this.initialUser,
-  })  : user = initialUser,
+  })  : user = null,
         selectedTab = AdminUserDetailsTab.profile,
         linkedVehicles = const <AdminUserVehicle>[],
         availableVehicles = const <AdminUserVehicle>[],
@@ -164,15 +164,46 @@ class AdminUserDetailsState {
   final String? sectionErrorMessage;
 
   bool get hasProfile => user != null;
-  bool get hasLoadedVehicles =>
-      linkedVehicles.isNotEmpty || availableVehicles.isNotEmpty;
-  bool get hasLoadedDrivers =>
-      linkedDrivers.isNotEmpty || availableDrivers.isNotEmpty;
-  bool get hasLoadedDocuments =>
-      documents.isNotEmpty || documentTypes.isNotEmpty;
+  bool get hasLoadedVehicles => linkedVehicles.isNotEmpty || availableVehicles.isNotEmpty;
+  bool get hasLoadedDrivers => linkedDrivers.isNotEmpty || availableDrivers.isNotEmpty;
+  bool get hasLoadedDocuments => documents.isNotEmpty || documentTypes.isNotEmpty;
   bool get hasLoadedTickets => tickets.isNotEmpty || selectedTicket != null;
   bool get hasLoadedPayments => paymentsPage != null;
   bool get hasLoadedLogs => logs.isNotEmpty || logsNextCursorId != null;
+
+  /// Resolved isActive that preserves known status from initialUser.
+  /// Priority: detail response > initialUser > default true
+  bool get effectiveIsActive {
+    // If we have detail data, use it
+    if (user != null) return user!.isActive;
+    // Fallback to initial list item
+    if (initialUser != null) return initialUser!.isActive;
+    // Default
+    return true;
+  }
+
+  /// Resolved vehicle count that avoids overwriting known count with 0.
+  /// Priority: explicit vehicles tab count > detail response if > 0 > initialUser > linked vehicles count
+  int? get resolvedVehicleCount {
+    // If vehicles tab has been loaded, use actual count
+    if (hasLoadedVehicles) return linkedVehicles.length;
+    // If detail has vehicle count > 0, use it
+    if (user != null && user!.vehicleCount > 0) return user!.vehicleCount;
+    // If initial list item had a count > 0, use it
+    if (initialUser != null && initialUser!.vehicleCount > 0) {
+      return initialUser!.vehicleCount;
+    }
+    // Return null if unknown (don't default to 0)
+    return null;
+  }
+
+  /// Resolved last login from updatedAt.
+  /// Priority: detail updatedAt > initialUser updatedAt
+  DateTime? get resolvedLastLogin {
+    if (user?.updatedAt != null) return user!.updatedAt;
+    if (initialUser?.updatedAt != null) return initialUser!.updatedAt;
+    return null;
+  }
 
   AdminUserDetailsState copyWith({
     Object? user = _unset,
@@ -226,9 +257,8 @@ class AdminUserDetailsState {
     return AdminUserDetailsState(
       userId: userId,
       user: identical(user, _unset) ? this.user : user as AdminUserDetails?,
-      initialUser: identical(initialUser, _unset)
-          ? this.initialUser
-          : initialUser as AdminUserDetails?,
+      initialUser:
+          identical(initialUser, _unset) ? this.initialUser : initialUser as AdminUserDetails?,
       selectedTab: selectedTab ?? this.selectedTab,
       linkedVehicles: linkedVehicles ?? this.linkedVehicles,
       availableVehicles: availableVehicles ?? this.availableVehicles,
@@ -245,9 +275,8 @@ class AdminUserDetailsState {
           ? this.paymentsPage
           : paymentsPage as AdminUserPaymentPage?,
       logs: logs ?? this.logs,
-      logsNextCursorId: identical(logsNextCursorId, _unset)
-          ? this.logsNextCursorId
-          : logsNextCursorId as int?,
+      logsNextCursorId:
+          identical(logsNextCursorId, _unset) ? this.logsNextCursorId : logsNextCursorId as int?,
       logsHasMore: logsHasMore ?? this.logsHasMore,
       logSearch: logSearch ?? this.logSearch,
       logActionPrefix: logActionPrefix ?? this.logActionPrefix,
@@ -257,11 +286,9 @@ class AdminUserDetailsState {
       isLoadingVehicles: isLoadingVehicles ?? this.isLoadingVehicles,
       isLoadingDrivers: isLoadingDrivers ?? this.isLoadingDrivers,
       isLoadingDocuments: isLoadingDocuments ?? this.isLoadingDocuments,
-      isLoadingDocumentTypes:
-          isLoadingDocumentTypes ?? this.isLoadingDocumentTypes,
+      isLoadingDocumentTypes: isLoadingDocumentTypes ?? this.isLoadingDocumentTypes,
       isLoadingTickets: isLoadingTickets ?? this.isLoadingTickets,
-      isLoadingTicketDetails:
-          isLoadingTicketDetails ?? this.isLoadingTicketDetails,
+      isLoadingTicketDetails: isLoadingTicketDetails ?? this.isLoadingTicketDetails,
       isLoadingPayments: isLoadingPayments ?? this.isLoadingPayments,
       isLoadingLogs: isLoadingLogs ?? this.isLoadingLogs,
       isLoadingMoreLogs: isLoadingMoreLogs ?? this.isLoadingMoreLogs,
@@ -278,12 +305,9 @@ class AdminUserDetailsState {
       isDeletingDocument: isDeletingDocument ?? this.isDeletingDocument,
       isCreatingTicket: isCreatingTicket ?? this.isCreatingTicket,
       isReplyingTicket: isReplyingTicket ?? this.isReplyingTicket,
-      isUpdatingTicketStatus:
-          isUpdatingTicketStatus ?? this.isUpdatingTicketStatus,
+      isUpdatingTicketStatus: isUpdatingTicketStatus ?? this.isUpdatingTicketStatus,
       isRenewingPayment: isRenewingPayment ?? this.isRenewingPayment,
-      errorMessage: identical(errorMessage, _unset)
-          ? this.errorMessage
-          : errorMessage as String?,
+      errorMessage: identical(errorMessage, _unset) ? this.errorMessage : errorMessage as String?,
       sectionErrorMessage: identical(sectionErrorMessage, _unset)
           ? this.sectionErrorMessage
           : sectionErrorMessage as String?,

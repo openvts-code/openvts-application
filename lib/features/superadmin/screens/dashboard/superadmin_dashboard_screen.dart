@@ -2419,5 +2419,5 @@ String _formatRelativeDate(DateTime? date, {bool shortUnits = false}) {
   if (difference.inDays < 7) {
     return '${difference.inDays}d ago';
   }
-  return DateFormat('dd MMM yyyy').format(localDate);
+  return const DateTimeFormatter().formatDate(localDate);
 }

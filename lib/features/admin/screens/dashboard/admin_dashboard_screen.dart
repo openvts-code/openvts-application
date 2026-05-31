@@ -11,6 +11,7 @@ import '../../../../core/theme/open_vts_radius.dart';
 import '../../../../core/theme/open_vts_spacing.dart';
 import '../../../../core/theme/open_vts_typography.dart';
 import '../../../../core/utils/date_time_formatter.dart';
+import '../../../../shared/widgets/dashboard/open_vts_dashboard_metric_card.dart';
 import '../../../../shared/widgets/open_vts_card.dart';
 import '../../../../shared/widgets/open_vts_error_view.dart';
 import '../../../../shared/widgets/open_vts_loader.dart';
@@ -70,12 +71,7 @@ class AdminDashboardScreen extends ConsumerWidget {
         physics: const AlwaysScrollableScrollPhysics(
           parent: BouncingScrollPhysics(),
         ),
-        padding: const EdgeInsets.fromLTRB(
-          OpenVtsSpacing.sm,
-          OpenVtsSpacing.sm,
-          OpenVtsSpacing.sm,
-          OpenVtsSpacing.lg,
-        ),
+        padding: const EdgeInsets.all(OpenVtsSpacing.sm),
         children: [
           Center(
             child: ConstrainedBox(
@@ -96,14 +92,6 @@ class AdminDashboardScreen extends ConsumerWidget {
                         onRetry: () => controller.refresh(),
                       ),
                     ),
-                  _DashboardHeader(
-                    dashboard: dashboard,
-                    isRefreshing: state.isRefreshing,
-                    onRefresh: () => controller.refresh(),
-                    onCurrencyChanged: (currency) =>
-                        controller.changeCurrency(currency),
-                  ),
-                  const SizedBox(height: OpenVtsSpacing.sm),
                   _KpiGrid(dashboard: dashboard),
                   const SizedBox(height: OpenVtsSpacing.sm),
                   _VehicleLiveStatusSection(
@@ -135,284 +123,13 @@ class AdminDashboardScreen extends ConsumerWidget {
                     payments: dashboard.recent.payments,
                     fallbackCurrency: dashboard.selectedCurrency,
                   ),
+                  const SizedBox(height: OpenVtsSpacing.lg),
                 ],
               ),
             ),
           ),
         ],
       ),
-    );
-  }
-}
-
-class _DashboardHeader extends StatelessWidget {
-  const _DashboardHeader({
-    required this.dashboard,
-    required this.isRefreshing,
-    required this.onRefresh,
-    required this.onCurrencyChanged,
-  });
-
-  final AdminDashboardSummary dashboard;
-  final bool isRefreshing;
-  final Future<void> Function() onRefresh;
-  final ValueChanged<String> onCurrencyChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final controls = _DashboardControls(
-          dashboard: dashboard,
-          isRefreshing: isRefreshing,
-          onRefresh: onRefresh,
-          onCurrencyChanged: onCurrencyChanged,
-          alignment: constraints.maxWidth < 560
-              ? WrapAlignment.start
-              : WrapAlignment.end,
-        );
-
-        final title = Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Dashboard',
-              style: OpenVtsTypography.titleSmall.copyWith(
-                color: OpenVtsColors.textPrimary,
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 3),
-            Text(
-              'Fleet management overview · Admin Panel',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: OpenVtsTypography.meta.copyWith(
-                color: OpenVtsColors.textSecondary,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        );
-
-        if (constraints.maxWidth < 560) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              title,
-              const SizedBox(height: OpenVtsSpacing.xs),
-              controls,
-            ],
-          );
-        }
-
-        return Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(child: title),
-            const SizedBox(width: OpenVtsSpacing.sm),
-            Flexible(child: controls),
-          ],
-        );
-      },
-    );
-  }
-}
-
-class _DashboardControls extends StatelessWidget {
-  const _DashboardControls({
-    required this.dashboard,
-    required this.isRefreshing,
-    required this.onRefresh,
-    required this.onCurrencyChanged,
-    required this.alignment,
-  });
-
-  final AdminDashboardSummary dashboard;
-  final bool isRefreshing;
-  final Future<void> Function() onRefresh;
-  final ValueChanged<String> onCurrencyChanged;
-  final WrapAlignment alignment;
-
-  @override
-  Widget build(BuildContext context) {
-    final currencies = dashboard.availableCurrencies
-        .map((currency) => currency.trim().toUpperCase())
-        .where((currency) => currency.isNotEmpty)
-        .toSet()
-        .toList(growable: false);
-    final selectedCurrency = currencies.contains(dashboard.selectedCurrency)
-        ? dashboard.selectedCurrency
-        : currencies.isNotEmpty
-            ? currencies.first
-            : dashboard.selectedCurrency;
-
-    return Wrap(
-      alignment: alignment,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      spacing: OpenVtsSpacing.xs,
-      runSpacing: OpenVtsSpacing.xs,
-      children: [
-        if (currencies.length > 1)
-          _CurrencySelector(
-            currencies: currencies,
-            selectedCurrency: selectedCurrency,
-            onChanged: onCurrencyChanged,
-          ),
-        _UpdatedTimePill(
-          generatedAt: dashboard.generatedAt,
-          isRefreshing: isRefreshing,
-        ),
-        _RefreshIconButton(
-          isRefreshing: isRefreshing,
-          onRefresh: onRefresh,
-        ),
-      ],
-    );
-  }
-}
-
-class _CurrencySelector extends StatelessWidget {
-  const _CurrencySelector({
-    required this.currencies,
-    required this.selectedCurrency,
-    required this.onChanged,
-  });
-
-  final List<String> currencies;
-  final String selectedCurrency;
-  final ValueChanged<String> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 34,
-      padding: const EdgeInsets.symmetric(horizontal: OpenVtsSpacing.xs),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(OpenVtsRadius.pill),
-        border: Border.all(color: OpenVtsColors.border),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: selectedCurrency,
-          isDense: true,
-          borderRadius: BorderRadius.circular(OpenVtsRadius.md),
-          icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 16),
-          items: currencies
-              .map(
-                (currency) => DropdownMenuItem<String>(
-                  value: currency,
-                  child: Text(
-                    currency,
-                    style: OpenVtsTypography.meta.copyWith(
-                      color: OpenVtsColors.textPrimary,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-              )
-              .toList(growable: false),
-          onChanged: (value) {
-            if (value != null) {
-              onChanged(value);
-            }
-          },
-        ),
-      ),
-    );
-  }
-}
-
-class _UpdatedTimePill extends StatelessWidget {
-  const _UpdatedTimePill({
-    required this.generatedAt,
-    required this.isRefreshing,
-  });
-
-  final DateTime? generatedAt;
-  final bool isRefreshing;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 34,
-      padding: const EdgeInsets.symmetric(horizontal: OpenVtsSpacing.sm),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(OpenVtsRadius.pill),
-        border: Border.all(color: OpenVtsColors.border),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (isRefreshing) ...[
-            SizedBox(
-              width: 12,
-              height: 12,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-            ),
-            const SizedBox(width: OpenVtsSpacing.xxs),
-            Text(
-              'Refreshing',
-              style: OpenVtsTypography.meta.copyWith(
-                color: OpenVtsColors.textSecondary,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ] else ...[
-            const Icon(
-              Icons.schedule_rounded,
-              size: 14,
-              color: OpenVtsColors.textTertiary,
-            ),
-            const SizedBox(width: OpenVtsSpacing.xxs),
-            Text(
-              'Updated ${formatTimeSafe(generatedAt)}',
-              style: OpenVtsTypography.meta.copyWith(
-                color: OpenVtsColors.textSecondary,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _RefreshIconButton extends StatelessWidget {
-  const _RefreshIconButton({
-    required this.isRefreshing,
-    required this.onRefresh,
-  });
-
-  final bool isRefreshing;
-  final Future<void> Function() onRefresh;
-
-  @override
-  Widget build(BuildContext context) {
-    return IconButton(
-      tooltip: 'Refresh dashboard',
-      onPressed: isRefreshing ? null : () => onRefresh(),
-      style: IconButton.styleFrom(
-        minimumSize: const Size.square(34),
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        padding: EdgeInsets.zero,
-        backgroundColor: Theme.of(context).colorScheme.surface,
-        disabledBackgroundColor: Theme.of(context).colorScheme.surface,
-        foregroundColor: OpenVtsColors.textPrimary,
-        disabledForegroundColor: OpenVtsColors.textTertiary,
-        side: const BorderSide(color: OpenVtsColors.border),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(OpenVtsRadius.pill),
-        ),
-      ),
-      icon: const Icon(Icons.refresh_rounded, size: 17),
     );
   }
 }
@@ -491,71 +208,11 @@ class _KpiCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return OpenVtsCard(
-      padding: const EdgeInsets.all(OpenVtsSpacing.sm),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Text(
-                  data.title.toUpperCase(),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: OpenVtsTypography.meta.copyWith(
-                    color: OpenVtsColors.textTertiary,
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-              Container(
-                width: 27,
-                height: 27,
-                decoration: BoxDecoration(
-                  color: OpenVtsColors.surface,
-                  borderRadius: BorderRadius.circular(OpenVtsRadius.sm),
-                  border: Border.all(color: OpenVtsColors.border),
-                ),
-                child: Icon(
-                  data.icon,
-                  size: 16,
-                  color: OpenVtsColors.textSecondary,
-                ),
-              ),
-            ],
-          ),
-          const Spacer(),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text(
-              data.value,
-              maxLines: 1,
-              style: OpenVtsTypography.numeric.copyWith(
-                color: OpenVtsColors.textPrimary,
-                fontSize: 22,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-          if (data.subtitle != null) ...[
-            const SizedBox(height: 3),
-            Text(
-              data.subtitle!,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: OpenVtsTypography.meta.copyWith(
-                color: OpenVtsColors.textSecondary,
-                fontSize: 10.5,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ],
-      ),
+    return OpenVtsDashboardMetricCard(
+      title: data.title,
+      value: data.value,
+      icon: data.icon,
+      subtitle: data.subtitle,
     );
   }
 }
@@ -610,10 +267,52 @@ class _VehicleLiveStatusSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _SectionHeading(
-            title: 'Vehicle Live Status',
-            icon: Icons.directions_car_outlined,
-            badge: 'Live',
+          Row(
+            children: [
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: OpenVtsColors.surface,
+                  borderRadius: BorderRadius.circular(OpenVtsRadius.sm),
+                  border: Border.all(color: OpenVtsColors.border),
+                ),
+                child: const Icon(
+                  Icons.directions_car_outlined,
+                  size: 16,
+                  color: OpenVtsColors.textSecondary,
+                ),
+              ),
+              const SizedBox(width: OpenVtsSpacing.xs),
+              Flexible(
+                child: Text(
+                  'Vehicle Live Status',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: OpenVtsTypography.label.copyWith(
+                    color: OpenVtsColors.textPrimary,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              const SizedBox(width: OpenVtsSpacing.xs),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                decoration: BoxDecoration(
+                  color: OpenVtsColors.surface,
+                  borderRadius: BorderRadius.circular(OpenVtsRadius.pill),
+                  border: Border.all(color: OpenVtsColors.border),
+                ),
+                child: Text(
+                  'LIVE',
+                  style: OpenVtsTypography.meta.copyWith(
+                    color: OpenVtsColors.textSecondary,
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: OpenVtsSpacing.sm),
           Wrap(
@@ -626,7 +325,7 @@ class _VehicleLiveStatusSection extends StatelessWidget {
                 icon: Icons.directions_car_outlined,
               ),
               _MetricPill(
-                label: 'Devices Installed',
+                label: 'Devices',
                 value: formatNumber(status.installedDevices),
                 icon: Icons.memory_outlined,
               ),
@@ -721,9 +420,36 @@ class _RevenueForecastSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _SectionHeading(
-            title: 'Revenue Forecast',
-            icon: Icons.trending_up_rounded,
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: OpenVtsColors.surface,
+                  borderRadius: BorderRadius.circular(OpenVtsRadius.sm),
+                  border: Border.all(color: OpenVtsColors.border),
+                ),
+                child: const Icon(
+                  Icons.trending_up_rounded,
+                  size: 16,
+                  color: OpenVtsColors.textSecondary,
+                ),
+              ),
+              const SizedBox(width: OpenVtsSpacing.xs),
+              Flexible(
+                child: Text(
+                  'Revenue Forecast',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: OpenVtsTypography.label.copyWith(
+                    color: OpenVtsColors.textPrimary,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: OpenVtsSpacing.sm),
           Row(
@@ -811,8 +537,7 @@ class _RevenueForecastSection extends StatelessWidget {
                     ),
                     _InfoRow(
                       label: 'Pending payments',
-                      value:
-                          '${formatCurrency(revenue.pendingAmount, currency)} · '
+                      value: '${formatCurrency(revenue.pendingAmount, currency)} · '
                           '${revenue.pendingCount} invoices',
                     ),
                   ],
@@ -839,79 +564,6 @@ class _RevenueForecastSection extends StatelessWidget {
             ],
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _SectionHeading extends StatelessWidget {
-  const _SectionHeading({
-    required this.title,
-    required this.icon,
-    this.badge,
-  });
-
-  final String title;
-  final IconData icon;
-  final String? badge;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 28,
-          height: 28,
-          decoration: BoxDecoration(
-            color: OpenVtsColors.surface,
-            borderRadius: BorderRadius.circular(OpenVtsRadius.sm),
-            border: Border.all(color: OpenVtsColors.border),
-          ),
-          child: Icon(icon, size: 16, color: OpenVtsColors.textSecondary),
-        ),
-        const SizedBox(width: OpenVtsSpacing.xs),
-        Flexible(
-          child: Text(
-            title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: OpenVtsTypography.label.copyWith(
-              color: OpenVtsColors.textPrimary,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ),
-        if (badge != null) ...[
-          const SizedBox(width: OpenVtsSpacing.xs),
-          _TextBadge(label: badge!),
-        ],
-      ],
-    );
-  }
-}
-
-class _TextBadge extends StatelessWidget {
-  const _TextBadge({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-      decoration: BoxDecoration(
-        color: OpenVtsColors.surface,
-        borderRadius: BorderRadius.circular(OpenVtsRadius.pill),
-        border: Border.all(color: OpenVtsColors.border),
-      ),
-      child: Text(
-        label.toUpperCase(),
-        style: OpenVtsTypography.meta.copyWith(
-          color: OpenVtsColors.textSecondary,
-          fontSize: 9.5,
-          fontWeight: FontWeight.w800,
-        ),
       ),
     );
   }
@@ -1070,8 +722,7 @@ class _RevenueProgressBar extends StatelessWidget {
       height: 12,
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final markerDx = (constraints.maxWidth * markerLeft)
-              .clamp(1.0, constraints.maxWidth - 2);
+          final markerDx = (constraints.maxWidth * markerLeft).clamp(1.0, constraints.maxWidth - 2);
 
           return Stack(
             clipBehavior: Clip.none,
@@ -1086,8 +737,7 @@ class _RevenueProgressBar extends StatelessWidget {
                     child: Align(
                       alignment: Alignment.centerLeft,
                       child: FractionallySizedBox(
-                        widthFactor:
-                            (collectedPct.clamp(0, 100) / 100).toDouble(),
+                        widthFactor: (collectedPct.clamp(0, 100) / 100).toDouble(),
                         child: const ColoredBox(
                           color: OpenVtsColors.brandInk,
                         ),

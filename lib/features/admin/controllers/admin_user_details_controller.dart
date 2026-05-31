@@ -26,6 +26,19 @@ class AdminUserDetailsController extends StateNotifier<AdminUserDetailsState> {
   final AdminUserDetailsService _service;
   final Set<AdminUserDetailsTab> _loadedTabs = <AdminUserDetailsTab>{};
 
+  /// Seed initial data from list item to preserve values that detail API may omit.
+  void seedInitialData({
+    int? vehicleCount,
+    DateTime? lastLogin,
+  }) {
+    // Only seed if we don't have detail data yet
+    if (state.user != null) return;
+
+    // Store these values so they can be used by resolvers
+    // The state.initialUser already holds the list item data
+    // No action needed here - resolvers use state.initialUser directly
+  }
+
   Future<void> loadInitial() async {
     await loadProfile();
   }
@@ -118,7 +131,24 @@ class AdminUserDetailsController extends StateNotifier<AdminUserDetailsState> {
       sectionErrorMessage: null,
     );
     try {
-      final user = await _service.getUserDetails(_userId);
+      var user = await _service.getUserDetails(_userId);
+
+      // Preserve known status from initialUser if detail API returned default true
+      // and we have explicit false from the list
+      if (user.isActive == true &&
+          state.initialUser != null &&
+          state.initialUser!.isActive == false) {
+        user = user.copyWith(isActive: false);
+      }
+
+      // Preserve known vehicle count if detail API returned 0
+      // and we have a positive count from the list
+      if (user.vehicleCount == 0 &&
+          state.initialUser != null &&
+          state.initialUser!.vehicleCount > 0) {
+        user = user.copyWith(vehicleCount: state.initialUser!.vehicleCount);
+      }
+
       _loadedTabs.add(AdminUserDetailsTab.profile);
       state = state.copyWith(
         user: user,

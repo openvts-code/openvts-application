@@ -27,12 +27,10 @@ class LocalizationSettingsSection extends ConsumerStatefulWidget {
   final SuperadminSettingsState state;
 
   @override
-  ConsumerState<LocalizationSettingsSection> createState() =>
-      _LocalizationSettingsSectionState();
+  ConsumerState<LocalizationSettingsSection> createState() => _LocalizationSettingsSectionState();
 }
 
-class _LocalizationSettingsSectionState
-    extends ConsumerState<LocalizationSettingsSection> {
+class _LocalizationSettingsSectionState extends ConsumerState<LocalizationSettingsSection> {
   final _formKey = GlobalKey<FormState>();
   final _latCtrl = TextEditingController();
   final _lonCtrl = TextEditingController();
@@ -115,14 +113,14 @@ class _LocalizationSettingsSectionState
     final ok = await _controller.updateLocalization(request);
     if (!mounted) return;
     if (ok) {
-      await ref
-          .read(appLocalizationPreferencesProvider.notifier)
-          .applyFromSuperadminSettings(
+      await ref.read(appLocalizationPreferencesProvider.notifier).applyFromSuperadminSettings(
             language: request.language,
             dateFormat: request.dateFormat,
             use24Hour: request.use24Hour,
             theme: request.theme.apiValue,
             timezoneOffset: request.timezoneOffset,
+            layoutDirection: request.layoutDirection.apiValue,
+            units: request.units.apiValue,
           );
       if (!mounted) return;
       ToastHelper.showSuccess('Localization saved');
@@ -133,7 +131,8 @@ class _LocalizationSettingsSectionState
       }
     } else {
       ToastHelper.showError(
-        ref.read(superadminSettingsControllerProvider).sectionErrorMessage ?? 'Failed to save localization',
+        ref.read(superadminSettingsControllerProvider).sectionErrorMessage ??
+            'Failed to save localization',
       );
     }
   }
@@ -206,9 +205,7 @@ class _LocalizationSettingsSectionState
             icon: Icons.public_rounded,
             trailing: IconButton(
               tooltip: 'Refresh',
-              onPressed: state.isLoadingLocalization
-                  ? null
-                  : _controller.loadLocalization,
+              onPressed: state.isLoadingLocalization ? null : _controller.loadLocalization,
               iconSize: 18,
               visualDensity: VisualDensity.compact,
               icon: const Icon(Icons.refresh_rounded),
@@ -593,8 +590,7 @@ class _LanguageDropdown extends StatelessWidget {
     final items = <DropdownMenuItem<String>>[
       if (!hasValue && value.isNotEmpty)
         DropdownMenuItem(value: value, child: Text(value.toUpperCase())),
-      for (final o in options)
-        DropdownMenuItem(value: o.code, child: Text(o.label)),
+      for (final o in options) DropdownMenuItem(value: o.code, child: Text(o.label)),
     ];
     return _DropdownShell(
       label: 'Language',
@@ -629,10 +625,8 @@ class _DateFormatDropdown extends StatelessWidget {
   Widget build(BuildContext context) {
     final hasValue = options.any((o) => o.value == value);
     final items = <DropdownMenuItem<String>>[
-      if (!hasValue && value.isNotEmpty)
-        DropdownMenuItem(value: value, child: Text(value)),
-      for (final o in options)
-        DropdownMenuItem(value: o.value, child: Text(o.label)),
+      if (!hasValue && value.isNotEmpty) DropdownMenuItem(value: value, child: Text(value)),
+      for (final o in options) DropdownMenuItem(value: o.value, child: Text(o.label)),
     ];
     return _DropdownShell(
       label: 'Date format',
@@ -667,10 +661,8 @@ class _TimezoneDropdown extends StatelessWidget {
   Widget build(BuildContext context) {
     final hasValue = options.contains(value);
     final items = <DropdownMenuItem<String>>[
-      if (!hasValue && value.isNotEmpty)
-        DropdownMenuItem(value: value, child: Text(value)),
-      for (final o in options)
-        DropdownMenuItem(value: o, child: Text(o)),
+      if (!hasValue && value.isNotEmpty) DropdownMenuItem(value: value, child: Text(value)),
+      for (final o in options) DropdownMenuItem(value: o, child: Text(o)),
     ];
     return _DropdownShell(
       label: 'Timezone',
@@ -871,8 +863,7 @@ class _PresetsRow extends StatelessWidget {
           spacing: 6,
           runSpacing: 6,
           children: [
-            for (final p in _kMapPresets)
-              _PresetChip(label: p.label, onTap: () => onPick(p)),
+            for (final p in _kMapPresets) _PresetChip(label: p.label, onTap: () => onPick(p)),
           ],
         ),
       ],

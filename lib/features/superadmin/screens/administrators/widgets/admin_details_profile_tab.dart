@@ -65,6 +65,7 @@ class _AdminDetailsProfileTabState
   Widget build(BuildContext context) {
     final provider = superadminAdminDetailsControllerProvider(widget.adminId);
     final admin = ref.watch(provider.select((s) => s.admin));
+    final effectiveIsActive = ref.watch(provider.select((s) => s.effectiveIsActive));
     final isUpdatingStatus =
         ref.watch(provider.select((s) => s.isUpdatingStatus));
     final isBusy = ref.watch(
@@ -88,6 +89,7 @@ class _AdminDetailsProfileTabState
         _AdminPersonalCard(
           adminId: widget.adminId,
           admin: admin,
+          effectiveIsActive: effectiveIsActive,
           isUpdatingStatus: isUpdatingStatus,
           isBusy: isBusy,
           onToggleStatus: (next) => _handleStatusToggle(
@@ -179,6 +181,7 @@ class _AdminPersonalCard extends ConsumerWidget {
   const _AdminPersonalCard({
     required this.adminId,
     required this.admin,
+    required this.effectiveIsActive,
     required this.isUpdatingStatus,
     required this.isBusy,
     required this.onToggleStatus,
@@ -186,6 +189,7 @@ class _AdminPersonalCard extends ConsumerWidget {
 
   final String adminId;
   final SuperadminAdminDetails admin;
+  final bool effectiveIsActive;
   final bool isUpdatingStatus;
   final bool isBusy;
   final ValueChanged<bool> onToggleStatus;
@@ -261,7 +265,7 @@ class _AdminPersonalCard extends ConsumerWidget {
                   width: 44,
                   height: 44,
                   child: Switch.adaptive(
-                    value: admin.isActive,
+                    value: effectiveIsActive,
                     materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     onChanged: isBusy ? null : onToggleStatus,
                   ),

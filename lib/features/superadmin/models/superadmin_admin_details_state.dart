@@ -65,6 +65,8 @@ class SuperadminAdminDetailsState {
     required this.documentMutationErrorMessage,
     required this.initialAdmin,
     required this.resolvedLastLogin,
+    required this.statusOverride,
+    required this.resolvedIsActive,
   });
 
   SuperadminAdminDetailsState.initial({required this.adminId})
@@ -118,7 +120,9 @@ class SuperadminAdminDetailsState {
         documentTypesErrorMessage = null,
         documentMutationErrorMessage = null,
         initialAdmin = null,
-        resolvedLastLogin = null;
+        resolvedLastLogin = null,
+        statusOverride = null,
+        resolvedIsActive = null;
 
   static const Object _unset = Object();
 
@@ -174,6 +178,15 @@ class SuperadminAdminDetailsState {
   final String? documentsErrorMessage;
   final String? documentTypesErrorMessage;
   final String? documentMutationErrorMessage;
+  final bool? statusOverride;
+  final bool? resolvedIsActive;
+
+  bool get effectiveIsActive =>
+      statusOverride ??
+      resolvedIsActive ??
+      initialAdmin?.isActive ??
+      admin?.isActive ??
+      false;
 
   SuperadminAdminDetailsState copyWith({
     Object? admin = _unset,
@@ -227,6 +240,8 @@ class SuperadminAdminDetailsState {
     Object? documentMutationErrorMessage = _unset,
     Object? initialAdmin = _unset,
     Object? resolvedLastLogin = _unset,
+    Object? statusOverride = _unset,
+    Object? resolvedIsActive = _unset,
   }) {
     return SuperadminAdminDetailsState(
       adminId: adminId,
@@ -320,6 +335,12 @@ class SuperadminAdminDetailsState {
       resolvedLastLogin: identical(resolvedLastLogin, _unset)
           ? this.resolvedLastLogin
           : resolvedLastLogin as DateTime?,
+      statusOverride: identical(statusOverride, _unset)
+          ? this.statusOverride
+          : statusOverride as bool?,
+      resolvedIsActive: identical(resolvedIsActive, _unset)
+          ? this.resolvedIsActive
+          : resolvedIsActive as bool?,
     );
   }
 }

@@ -49,13 +49,24 @@ class SuperadminAdminDetailsController
   /// Seed initialAdmin from the administrators list item.
   /// Call this from the screen when initialAdmin is available.
   void seedInitialAdmin(SuperadminAdministrator? admin) {
-    if (admin != null && state.initialAdmin == null) {
-      final resolvedLastLogin = admin.lastLoginAt;
-      state = state.copyWith(
-        initialAdmin: admin,
-        resolvedLastLogin: resolvedLastLogin,
-      );
-    }
+    if (admin == null) return;
+    if (state.initialAdmin != null) return;
+
+    final knownActive =
+        state.statusOverride ??
+        state.resolvedIsActive ??
+        admin.isActive;
+
+    final mergedAdmin = state.admin == null
+        ? null
+        : state.admin!.copyWith(isActive: knownActive);
+
+    state = state.copyWith(
+      initialAdmin: admin,
+      resolvedLastLogin: admin.lastLoginAt,
+      resolvedIsActive: knownActive,
+      admin: mergedAdmin,
+    );
   }
 
   /// Seed initial data from the administrators list item.
@@ -76,7 +87,7 @@ class SuperadminAdminDetailsController
       errorMessage: null,
     );
     try {
-      final admin = await _detailsService.getAdminDetails(_adminId);
+      final fresh = await _detailsService.getAdminDetails(_adminId);
 
       // Preserve vehicle count if detail API doesn't return it
       final preservedVehicleCount = state.vehicleCount;
@@ -84,10 +95,10 @@ class SuperadminAdminDetailsController
       final preservedLastLogin = state.admin?.recentLogin;
       final resolvedLastLoginFromState = state.resolvedLastLogin;
 
-      var updatedAdmin = admin;
+      var updatedAdmin = fresh;
 
       // Preserve vehicle count if missing
-      if (admin.totalVehicles < 0) {
+      if (fresh.totalVehicles < 0) {
         final knownCount = preservedVehicleCount ??
                           (preservedAdminCount != null && preservedAdminCount >= 0
                               ? preservedAdminCount
@@ -98,18 +109,30 @@ class SuperadminAdminDetailsController
       }
 
       // Preserve last login if missing: use detail API value, or fallback to previous, or use resolved value
-      if (admin.recentLogin == null) {
+      if (fresh.recentLogin == null) {
         final knownLastLogin = preservedLastLogin ?? resolvedLastLoginFromState;
         if (knownLastLogin != null) {
           updatedAdmin = updatedAdmin.copyWith(recentLogin: knownLastLogin);
         }
       } else {
         // Update resolved last login when detail API provides it
-        state = state.copyWith(resolvedLastLogin: admin.recentLogin);
+        state = state.copyWith(resolvedLastLogin: fresh.recentLogin);
       }
+
+      // Preserve active status: prioritize override, then resolved, then initial, then current
+      final knownActive =
+          state.statusOverride ??
+          state.resolvedIsActive ??
+          state.initialAdmin?.isActive ??
+          state.admin?.isActive;
+
+      final resolvedActive = knownActive ?? fresh.isActive;
+
+      updatedAdmin = updatedAdmin.copyWith(isActive: resolvedActive);
 
       state = state.copyWith(
         admin: updatedAdmin,
+        resolvedIsActive: resolvedActive,
         isLoadingAdmin: false,
       );
     } catch (error) {
@@ -230,6 +253,8 @@ class SuperadminAdminDetailsController
 
   Future<bool> updateStatus(bool isActive) async {
     final previousValue = state.admin?.isActive;
+    final previousOverride = state.statusOverride;
+    final previousResolved = state.resolvedIsActive;
 
     state = state.copyWith(
       isUpdatingStatus: true,
@@ -242,35 +267,24 @@ class SuperadminAdminDetailsController
         isActive: isActive,
       );
 
-      // Optimistic update
+      // Set override and resolved status after successful backend update
       state = state.copyWith(
         admin: state.admin?.copyWith(isActive: isActive),
+        statusOverride: isActive,
+        resolvedIsActive: isActive,
         isUpdatingStatus: false,
       );
 
-      // Sync with server; preserve the toggled status if backend response
-      // omits or returns stale isActive field.
+      // Sync with server; preserve the toggled status
       try {
         final fresh = await _detailsService.getAdminDetails(_adminId);
 
-        // If fresh response has explicit isActive value, use it.
-        // Otherwise preserve our confirmed optimistic value.
-        // Note: parser defaults to true when all status fields are missing,
-        // so we can't distinguish "true from API" vs "defaulted to true".
-        // Solution: always trust our optimistic value unless the fresh
-        // response explicitly contradicts it.
-        final shouldPreserveOptimistic =
-            fresh.isActive != isActive && previousValue != null;
-
-        if (shouldPreserveOptimistic) {
-          // Backend returned stale/wrong value, keep our confirmed state
-          state = state.copyWith(
-            admin: fresh.copyWith(isActive: isActive),
-          );
-        } else {
-          // Backend confirmed our value or returned different valid state
-          state = state.copyWith(admin: fresh);
-        }
+        // Always preserve the confirmed status value, don't let fresh override
+        state = state.copyWith(
+          admin: fresh.copyWith(isActive: isActive),
+          statusOverride: isActive,
+          resolvedIsActive: isActive,
+        );
       } catch (_) {
         // Server refresh failed — keep the optimistic state.
       }
@@ -283,6 +297,8 @@ class SuperadminAdminDetailsController
       // Rollback on failure
       state = state.copyWith(
         admin: state.admin?.copyWith(isActive: previousValue ?? true),
+        statusOverride: previousOverride,
+        resolvedIsActive: previousResolved,
         isUpdatingStatus: false,
         sectionErrorMessage: _errorMessage(error),
       );

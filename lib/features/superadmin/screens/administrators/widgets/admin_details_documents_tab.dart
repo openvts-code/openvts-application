@@ -1,13 +1,13 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../../core/config/app_config.dart';
 import '../../../../../core/theme/open_vts_colors.dart';
 import '../../../../../core/theme/open_vts_radius.dart';
 import '../../../../../core/theme/open_vts_spacing.dart';
+import '../../../../../core/utils/date_time_formatter.dart';
 import '../../../../../shared/helpers/toast_helper.dart';
 import '../../../../../shared/widgets/open_vts_button.dart';
 import '../../../../../shared/widgets/open_vts_card.dart';
@@ -373,7 +373,7 @@ class _DocumentCard extends StatelessWidget {
     final ext = _fileExtension(document);
     final created = document.createdAt;
     final expiry = document.expiryAt;
-    final fmt = DateFormat('dd MMM yyyy');
+    const fmt = DateTimeFormatter();
 
     return OpenVtsCard(
       onTap: onView,
@@ -447,7 +447,7 @@ class _DocumentCard extends StatelessWidget {
               if (created != null)
                 _MetaChip(
                   icon: Icons.calendar_today_outlined,
-                  label: 'Added ${fmt.format(created)}',
+                  label: 'Added ${fmt.formatDate(created)}',
                 ),
               if (expiry != null) _ExpiryChip(expiryAt: expiry, formatter: fmt),
               _VisibilityChip(isVisible: document.isVisible),
@@ -578,7 +578,7 @@ class _MetaChip extends StatelessWidget {
 class _ExpiryChip extends StatelessWidget {
   const _ExpiryChip({required this.expiryAt, required this.formatter});
   final DateTime expiryAt;
-  final DateFormat formatter;
+  final DateTimeFormatter formatter;
 
   @override
   Widget build(BuildContext context) {
@@ -589,13 +589,13 @@ class _ExpiryChip extends StatelessWidget {
     final String label;
     if (days < 0) {
       color = OpenVtsColors.error;
-      label = 'Expired ${formatter.format(expiryAt)}';
+      label = 'Expired ${formatter.formatDate(expiryAt)}';
     } else if (days <= 30) {
       color = OpenVtsColors.warning;
       label = 'Expires in ${days}d';
     } else {
       color = OpenVtsColors.success;
-      label = 'Expires ${formatter.format(expiryAt)}';
+      label = 'Expires ${formatter.formatDate(expiryAt)}';
     }
     return _MetaChip(
       icon: Icons.schedule_outlined,
@@ -1180,7 +1180,7 @@ class _ExpiryField extends StatelessWidget {
   Widget build(BuildContext context) {
     final label = value == null
         ? 'No expiry date'
-        : DateFormat('dd MMM yyyy').format(value!);
+        : const DateTimeFormatter().formatDate(value!);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

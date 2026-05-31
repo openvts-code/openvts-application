@@ -7,7 +7,6 @@ import '../../../../core/theme/open_vts_colors.dart';
 import '../../../../core/theme/open_vts_radius.dart';
 import '../../../../core/theme/open_vts_spacing.dart';
 import '../../../../core/theme/open_vts_typography.dart';
-import '../../../../core/utils/date_time_formatter.dart';
 import '../../../../shared/helpers/toast_helper.dart';
 import '../../../../shared/widgets/open_vts_bottom_sheet.dart';
 import '../../../../shared/widgets/open_vts_button.dart';
@@ -38,12 +37,26 @@ class AdminUserDetailsScreen extends ConsumerStatefulWidget {
   final AdminUserListItem? initialUser;
 
   @override
-  ConsumerState<AdminUserDetailsScreen> createState() =>
-      _AdminUserDetailsScreenState();
+  ConsumerState<AdminUserDetailsScreen> createState() => _AdminUserDetailsScreenState();
 }
 
-class _AdminUserDetailsScreenState
-    extends ConsumerState<AdminUserDetailsScreen> {
+class _AdminUserDetailsScreenState extends ConsumerState<AdminUserDetailsScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Seed initial data from list item
+    if (widget.initialUser != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final controller = ref.read(adminUserDetailsControllerProvider(widget.userId).notifier);
+        controller.seedInitialData(
+          vehicleCount:
+              widget.initialUser!.vehicleCount > 0 ? widget.initialUser!.vehicleCount : null,
+          lastLogin: widget.initialUser!.updatedAt,
+        );
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = adminUserDetailsControllerProvider(widget.userId);
@@ -53,6 +66,7 @@ class _AdminUserDetailsScreenState
       details: state.user,
       fallback: widget.initialUser,
       userId: widget.userId,
+      effectiveIsActive: state.effectiveIsActive,
     );
 
     return OpenVtsPageScaffold(
@@ -72,9 +86,7 @@ class _AdminUserDetailsScreenState
         ),
         _HeaderMenu(
           isActive: user.isActive,
-          isBusy: state.isUpdatingStatus ||
-              state.isChangingPassword ||
-              state.isLoadingProfile,
+          isBusy: state.isUpdatingStatus || state.isChangingPassword || state.isLoadingProfile,
           onRefresh: () => controller.refreshCurrentTab(),
           onEditProfile: () => _showEditProfileSheet(),
           onEditCompany: () => _showEditCompanySheet(),
@@ -188,8 +200,7 @@ class _AdminUserDetailsScreenState
                 );
               } else {
                 ToastHelper.showError(
-                  ref.read(provider).sectionErrorMessage ??
-                      'Unable to update password.',
+                  ref.read(provider).sectionErrorMessage ?? 'Unable to update password.',
                   context: sheetContext,
                 );
               }
@@ -230,9 +241,7 @@ class _AdminUserDetailsScreenState
 
   Future<void> _loginAsUser(_UserSnapshot user) async {
     try {
-      await ref
-          .read(adminUsersControllerProvider.notifier)
-          .loginAsUser(user.id);
+      await ref.read(adminUsersControllerProvider.notifier).loginAsUser(user.id);
       if (!mounted) {
         return;
       }
@@ -246,8 +255,7 @@ class _AdminUserDetailsScreenState
         return;
       }
       ToastHelper.showError(
-        ref.read(adminUsersControllerProvider).errorMessage ??
-            'Unable to login as user.',
+        ref.read(adminUsersControllerProvider).errorMessage ?? 'Unable to login as user.',
         context: context,
       );
     }
@@ -293,8 +301,7 @@ class _AdminUserDetailsScreenState
         return;
       }
       ToastHelper.showError(
-        ref.read(adminUsersControllerProvider).errorMessage ??
-            'Unable to delete user.',
+        ref.read(adminUsersControllerProvider).errorMessage ?? 'Unable to delete user.',
         context: context,
       );
     }
@@ -382,8 +389,7 @@ class _HeaderMenu extends StatelessWidget {
           value: _HeaderMenuAction.toggleStatus,
           height: 40,
           child: _MenuRow(
-            icon:
-                isActive ? Icons.toggle_off_outlined : Icons.toggle_on_outlined,
+            icon: isActive ? Icons.toggle_off_outlined : Icons.toggle_on_outlined,
             label: isActive ? 'Deactivate' : 'Activate',
           ),
         ),
@@ -425,8 +431,7 @@ class _MenuRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color =
-        isDestructive ? OpenVtsColors.error : OpenVtsColors.textPrimary;
+    final color = isDestructive ? OpenVtsColors.error : OpenVtsColors.textPrimary;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -461,122 +466,118 @@ class _SummaryCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              _InitialsAvatar(initials: user.initials),
+              Container(
+                height: 44,
+                width: 44,
+                alignment: Alignment.center,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: OpenVtsColors.surface,
+                ),
+                child: Text(
+                  user.initials,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: OpenVtsColors.textPrimary,
+                  ),
+                ),
+              ),
               const SizedBox(width: OpenVtsSpacing.sm),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            user.displayName,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                ),
-                          ),
-                        ),
-                        if (isSyncing) ...[
-                          const SizedBox(width: OpenVtsSpacing.xs),
-                          const SizedBox(
-                            width: 14,
-                            height: 14,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          ),
-                        ],
-                      ],
-                    ),
-                    const SizedBox(height: OpenVtsSpacing.xxs),
                     Text(
-                      user.usernameLabel,
+                      user.displayName,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: OpenVtsColors.textPrimary,
+                        height: 1.2,
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: OpenVtsColors.textSecondary,
-                          ),
                     ),
-                    const SizedBox(height: OpenVtsSpacing.xs),
-                    Wrap(
-                      spacing: OpenVtsSpacing.xs,
-                      runSpacing: OpenVtsSpacing.xxs,
-                      children: [
-                        _StatusChip(isActive: user.isActive),
-                        _VerifiedChip(isVerified: user.isEmailVerified),
-                      ],
-                    ),
+                    if (user.username.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        '@${user.username}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: OpenVtsColors.textSecondary,
+                          height: 1.2,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
                   ],
                 ),
               ),
+              const SizedBox(width: OpenVtsSpacing.sm),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  _StatusChip(isActive: user.isActive),
+                  if (user.isEmailVerified) ...[
+                    const SizedBox(height: 4),
+                    const _MicroChip(
+                      label: 'Verified',
+                      icon: Icons.verified_outlined,
+                      color: OpenVtsColors.success,
+                    ),
+                  ],
+                ],
+              ),
             ],
           ),
+          if (user.email.isNotEmpty || user.phone.isNotEmpty) ...[
+            const SizedBox(height: OpenVtsSpacing.sm),
+            if (user.email.isNotEmpty)
+              _ContactLineWithVerification(
+                icon: Icons.mail_outline_rounded,
+                text: user.email,
+                isVerified: user.isEmailVerified,
+              ),
+            if (user.email.isNotEmpty && user.phone.isNotEmpty) const SizedBox(height: 4),
+            if (user.phone.isNotEmpty)
+              _CompactInfoLine(icon: Icons.phone_outlined, value: user.phone),
+          ],
           const SizedBox(height: OpenVtsSpacing.md),
           const Divider(height: 1, color: OpenVtsColors.border),
           const SizedBox(height: OpenVtsSpacing.md),
-          _CompactInfoLine(icon: Icons.mail_outline_rounded, value: user.email),
-          _CompactInfoLine(icon: Icons.phone_outlined, value: user.phone),
-          const SizedBox(height: OpenVtsSpacing.md),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final metricRows = <Widget>[
-                _MetricTile(
+          Row(
+            children: [
+              Expanded(
+                child: _MetricTile(
                   icon: Icons.directions_car_outlined,
                   label: 'Vehicles',
                   value: resolvedVehicleCount.toString(),
                 ),
-                _MetricTile(
-                  icon: Icons.calendar_today_rounded,
-                  label: 'Created',
-                  value: _dateLabel(user.createdAt),
-                ),
-                _MetricTile(
-                  icon: Icons.update_rounded,
-                  label: 'Updated',
-                  value: _dateLabel(user.updatedAt),
-                ),
-                _MetricTile(
-                  icon: Icons.apartment_outlined,
-                  label: 'Company',
-                  value: _displayValue(user.company),
-                ),
-              ];
-
-              if (constraints.maxWidth < 420) {
-                return Column(
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(child: metricRows[0]),
-                        const SizedBox(width: OpenVtsSpacing.sm),
-                        Expanded(child: metricRows[1]),
-                      ],
+              ),
+              const SizedBox(width: OpenVtsSpacing.sm),
+              if (isSyncing)
+                const Expanded(
+                  child: Center(
+                    child: SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
                     ),
-                    const SizedBox(height: OpenVtsSpacing.sm),
-                    Row(
-                      children: [
-                        Expanded(child: metricRows[2]),
-                        const SizedBox(width: OpenVtsSpacing.sm),
-                        Expanded(child: metricRows[3]),
-                      ],
-                    ),
-                  ],
-                );
-              }
-
-              return GridView.count(
-                shrinkWrap: true,
-                crossAxisCount: 2,
-                crossAxisSpacing: OpenVtsSpacing.sm,
-                mainAxisSpacing: OpenVtsSpacing.sm,
-                childAspectRatio: 2.1,
-                physics: const NeverScrollableScrollPhysics(),
-                children: metricRows,
-              );
-            },
+                  ),
+                )
+              else
+                Expanded(
+                  child: _MetricTile(
+                    icon: Icons.apartment_outlined,
+                    label: 'Company',
+                    value: _displayValue(user.company),
+                  ),
+                ),
+            ],
           ),
         ],
       ),
@@ -615,33 +616,6 @@ class _SummarySkeleton extends StatelessWidget {
   }
 }
 
-class _InitialsAvatar extends StatelessWidget {
-  const _InitialsAvatar({required this.initials});
-
-  final String initials;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 56,
-      height: 56,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: OpenVtsColors.surface,
-        borderRadius: BorderRadius.circular(OpenVtsRadius.pill),
-        border: Border.all(color: OpenVtsColors.border),
-      ),
-      child: Text(
-        initials,
-        style: OpenVtsTypography.label.copyWith(
-          color: OpenVtsColors.textPrimary,
-          fontWeight: FontWeight.w800,
-        ),
-      ),
-    );
-  }
-}
-
 class _StatusChip extends StatelessWidget {
   const _StatusChip({required this.isActive});
 
@@ -653,22 +627,6 @@ class _StatusChip extends StatelessWidget {
     return _MicroChip(
       label: isActive ? 'Active' : 'Inactive',
       icon: isActive ? Icons.check_circle_outline_rounded : Icons.pause_circle_outline_rounded,
-      color: color,
-    );
-  }
-}
-
-class _VerifiedChip extends StatelessWidget {
-  const _VerifiedChip({required this.isVerified});
-
-  final bool isVerified;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = isVerified ? OpenVtsColors.success : OpenVtsColors.warning;
-    return _MicroChip(
-      label: isVerified ? 'Verified' : 'Unverified',
-      icon: isVerified ? Icons.verified_outlined : Icons.gpp_maybe_rounded,
       color: color,
     );
   }
@@ -705,6 +663,51 @@ class _MicroChip extends StatelessWidget {
               color: color,
               fontSize: 11,
               fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ContactLineWithVerification extends StatelessWidget {
+  const _ContactLineWithVerification({
+    required this.icon,
+    required this.text,
+    required this.isVerified,
+  });
+
+  final IconData icon;
+  final String text;
+  final bool isVerified;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: OpenVtsSpacing.xxs),
+      child: Row(
+        children: [
+          Icon(icon, size: 14, color: OpenVtsColors.textTertiary),
+          const SizedBox(width: OpenVtsSpacing.xs),
+          Flexible(
+            child: Text(
+              _displayValue(text),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: OpenVtsTypography.meta.copyWith(
+                color: OpenVtsColors.textSecondary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          const SizedBox(width: 4),
+          Tooltip(
+            message: isVerified ? 'Email verified' : 'Email unverified',
+            child: Icon(
+              isVerified ? Icons.check_circle_rounded : Icons.error_outline_rounded,
+              size: 15,
+              color: isVerified ? OpenVtsColors.success : OpenVtsColors.warning,
             ),
           ),
         ],
@@ -814,8 +817,7 @@ class _TabChips extends StatelessWidget {
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: tabs.length,
-        separatorBuilder: (context, index) =>
-            const SizedBox(width: OpenVtsSpacing.xs),
+        separatorBuilder: (context, index) => const SizedBox(width: OpenVtsSpacing.xs),
         itemBuilder: (context, index) {
           final tab = tabs[index];
           return _TabChip(
@@ -842,10 +844,8 @@ class _TabChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final background =
-        isSelected ? OpenVtsColors.brandInk : OpenVtsColors.white;
-    final foreground =
-        isSelected ? OpenVtsColors.white : OpenVtsColors.textPrimary;
+    final background = isSelected ? OpenVtsColors.brandInk : OpenVtsColors.white;
+    final foreground = isSelected ? OpenVtsColors.white : OpenVtsColors.textPrimary;
     return Material(
       color: background,
       shape: RoundedRectangleBorder(
@@ -1041,9 +1041,7 @@ class _PasswordSheetState extends State<_PasswordSheet> {
                 setState(() => _obscurePassword = !_obscurePassword);
               },
               icon: Icon(
-                _obscurePassword
-                    ? Icons.visibility_outlined
-                    : Icons.visibility_off_outlined,
+                _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
                 size: 18,
               ),
             ),
@@ -1062,9 +1060,7 @@ class _PasswordSheetState extends State<_PasswordSheet> {
                 setState(() => _obscureConfirm = !_obscureConfirm);
               },
               icon: Icon(
-                _obscureConfirm
-                    ? Icons.visibility_outlined
-                    : Icons.visibility_off_outlined,
+                _obscureConfirm ? Icons.visibility_outlined : Icons.visibility_off_outlined,
                 size: 18,
               ),
             ),
@@ -1160,8 +1156,7 @@ class _UserSnapshot {
   final DateTime? updatedAt;
   final int? vehicleCount;
 
-  bool get hasKnownData =>
-      name.isNotEmpty || username.isNotEmpty || email.isNotEmpty;
+  bool get hasKnownData => name.isNotEmpty || username.isNotEmpty || email.isNotEmpty;
 
   String get displayName {
     if (name.trim().isNotEmpty) {
@@ -1205,27 +1200,26 @@ class _UserSnapshot {
     if (words.length == 1) {
       return words.first.characters.take(2).toString().toUpperCase();
     }
-    return '${words.first.characters.first}${words.last.characters.first}'
-        .toUpperCase();
+    return '${words.first.characters.first}${words.last.characters.first}'.toUpperCase();
   }
 
   static _UserSnapshot resolve({
     required AdminUserDetails? details,
     required AdminUserListItem? fallback,
     required String userId,
+    required bool effectiveIsActive,
   }) {
     if (details != null) {
       final address = details.address;
-      final company = details.companies.isNotEmpty
-          ? details.companies.first.name
-          : details.organization;
+      final company =
+          details.companies.isNotEmpty ? details.companies.first.name : details.organization;
       return _UserSnapshot(
         id: details.id.isNotEmpty ? details.id : userId,
         name: details.name,
         username: details.username,
         email: details.email,
         phone: details.mobileDisplay,
-        isActive: details.isActive,
+        isActive: effectiveIsActive,
         isEmailVerified: details.isEmailVerified,
         company: company,
         location: details.location,
@@ -1246,7 +1240,7 @@ class _UserSnapshot {
         username: fallback.username,
         email: fallback.email,
         phone: fallback.mobileDisplay,
-        isActive: fallback.isActive,
+        isActive: effectiveIsActive,
         isEmailVerified: fallback.isEmailVerified,
         company: fallback.companyName,
         location: fallback.location,
@@ -1266,7 +1260,7 @@ class _UserSnapshot {
       username: '',
       email: '',
       phone: '',
-      isActive: false,
+      isActive: effectiveIsActive,
       isEmailVerified: false,
       company: '',
       location: '',
@@ -1327,11 +1321,4 @@ String _displayValue(String value) {
     return '-';
   }
   return normalized;
-}
-
-String _dateLabel(DateTime? value) {
-  if (value == null) {
-    return '—';
-  }
-  return const DateTimeFormatter().formatDate(value.toLocal());
 }

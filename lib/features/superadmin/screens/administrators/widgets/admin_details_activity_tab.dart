@@ -4,8 +4,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
-
 import '../../../../../core/theme/open_vts_colors.dart';
 import '../../../../../core/theme/open_vts_radius.dart';
 import '../../../../../core/theme/open_vts_spacing.dart';
@@ -1009,5 +1007,5 @@ String? _formatRelative(DateTime? value) {
   if (diff.inDays < 7 && diff.inDays >= 0) {
     return '${diff.inDays}d ago';
   }
-  return DateFormat('dd MMM yyyy').format(value.toLocal());
+  return const DateTimeFormatter().formatDate(value.toLocal());
 }

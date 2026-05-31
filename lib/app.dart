@@ -23,7 +23,6 @@ class App extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(appRouterProvider);
-    final themeMode = ref.watch(themeModeProvider);
     final prefs = ref.watch(appLocalizationPreferencesProvider);
 
     return _MobilePushLifecycleScope(
@@ -33,7 +32,7 @@ class App extends ConsumerWidget {
         scaffoldMessengerKey: ToastHelper.messengerKey,
         theme: OpenVtsTheme.light,
         darkTheme: OpenVtsTheme.dark,
-        themeMode: themeMode,
+        themeMode: prefs.themeMode,
         locale: Locale(prefs.languageCode),
         supportedLocales: const [
           Locale('en'),
@@ -50,9 +49,12 @@ class App extends ConsumerWidget {
           GlobalCupertinoLocalizations.delegate,
         ],
         routerConfig: router,
-        builder: (context, child) => AppEntry(
-          child: child ?? const SizedBox.shrink(),
-        ),
+        builder: (context, child) {
+          return Directionality(
+            textDirection: prefs.textDirection,
+            child: AppEntry(child: child ?? const SizedBox.shrink()),
+          );
+        },
       ),
     );
   }
@@ -64,12 +66,10 @@ class _MobilePushLifecycleScope extends ConsumerStatefulWidget {
   final Widget child;
 
   @override
-  ConsumerState<_MobilePushLifecycleScope> createState() =>
-      _MobilePushLifecycleScopeState();
+  ConsumerState<_MobilePushLifecycleScope> createState() => _MobilePushLifecycleScopeState();
 }
 
-class _MobilePushLifecycleScopeState
-    extends ConsumerState<_MobilePushLifecycleScope> {
+class _MobilePushLifecycleScopeState extends ConsumerState<_MobilePushLifecycleScope> {
   late final MobilePushLifecycleObserver _lifecycleObserver;
   late final MobilePushNavigation _mobilePushNavigation;
   late final MobilePushService _mobilePushService;
@@ -83,8 +83,7 @@ class _MobilePushLifecycleScopeState
       ..setNotificationCenterRefreshHook(
         _mobilePushNavigation.handleForegroundMessage,
       );
-    _lifecycleObserver = MobilePushLifecycleObserver(onResume: _handleResume)
-      ..attach();
+    _lifecycleObserver = MobilePushLifecycleObserver(onResume: _handleResume)..attach();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) {
@@ -159,8 +158,7 @@ class _MobilePushLifecycleScopeState
 
     // Resume path must not await network work and should only attempt
     // fire-and-forget registration when cached gating allows it.
-    if (authState.isAuthenticated &&
-        controller.shouldAttemptBackgroundRegistration) {
+    if (authState.isAuthenticated && controller.shouldAttemptBackgroundRegistration) {
       unawaited(controller.registerTokenForCurrentSession());
     }
   }
