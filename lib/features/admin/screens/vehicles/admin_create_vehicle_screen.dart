@@ -8,6 +8,7 @@ import '../../../../core/theme/open_vts_spacing.dart';
 import '../../../../core/theme/open_vts_typography.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../shared/helpers/toast_helper.dart';
+import '../../../../shared/widgets/open_vts_bottom_sheet.dart';
 import '../../../../shared/widgets/open_vts_button.dart';
 import '../../../../shared/widgets/open_vts_error_view.dart';
 import '../../../../shared/widgets/open_vts_loader.dart';
@@ -15,7 +16,11 @@ import '../../../../shared/widgets/open_vts_page_scaffold.dart';
 import '../../../../shared/widgets/open_vts_searchable_dropdown.dart';
 import '../../../../shared/widgets/open_vts_text_field.dart';
 import '../../controllers/admin_providers.dart';
+import '../../models/admin_inventory_model.dart';
+import '../../models/admin_plans_model.dart';
 import '../../models/admin_vehicle_model.dart';
+import '../inventory/widgets/admin_inventory_add_sheet.dart';
+import '../plans/widgets/admin_plan_form_sheet.dart';
 
 class AdminCreateVehicleScreen extends ConsumerStatefulWidget {
   const AdminCreateVehicleScreen({super.key});
@@ -27,6 +32,9 @@ class AdminCreateVehicleScreen extends ConsumerStatefulWidget {
 
 class _AdminCreateVehicleScreenState
     extends ConsumerState<AdminCreateVehicleScreen> {
+  static const _createDeviceValue = '__create_device__';
+  static const _createPlanValue = '__create_plan__';
+
   final _formKey = GlobalKey<FormState>();
 
   final _nameController = TextEditingController();
@@ -240,35 +248,54 @@ class _AdminCreateVehicleScreenState
           (item) => OpenVtsDropdownOption<String>(
             value: item.id,
             label: item.name.trim().isEmpty ? item.mobileDisplay : item.name,
-            subtitle: item.mobileDisplay.trim().isEmpty ? item.email : item.mobileDisplay,
-            searchText: '${item.name} ${item.email} ${item.mobileDisplay} ${item.username}',
+            subtitle: item.mobileDisplay.trim().isEmpty
+                ? item.email
+                : item.mobileDisplay,
+            searchText:
+                '${item.name} ${item.email} ${item.mobileDisplay} ${item.username}',
           ),
         )
         .toList(growable: false);
 
-    final deviceOptions = _devices
-        .map(
-          (item) => OpenVtsDropdownOption<String>(
-            value: item.id,
-            label: item.imei.trim().isEmpty ? item.name : item.imei,
-            subtitle: item.simNumber.trim().isEmpty ? item.name : item.simNumber,
-            searchText: '${item.imei} ${item.simNumber} ${item.name}',
-          ),
-        )
-        .toList(growable: false);
+    final deviceOptions = [
+      const OpenVtsDropdownOption<String>(
+        value: _createDeviceValue,
+        label: '+ Add new device',
+        subtitle: 'Create device without leaving this form',
+        leading: Icon(Icons.add_circle_outline,
+            size: 20, color: OpenVtsColors.brandInk),
+        searchText: 'add new create device',
+      ),
+      ..._devices.map(
+        (item) => OpenVtsDropdownOption<String>(
+          value: item.id,
+          label: item.imei.trim().isEmpty ? item.name : item.imei,
+          subtitle: item.simNumber.trim().isEmpty ? item.name : item.simNumber,
+          searchText: '${item.imei} ${item.simNumber} ${item.name}',
+        ),
+      ),
+    ];
 
-    final planOptions = _plans
-        .map(
-          (item) => OpenVtsDropdownOption<String>(
-            value: item.id,
-            label: item.name,
-            subtitle: item.price == null
-                ? item.currency
-                : '${item.price} ${item.currency}'.trim(),
-            searchText: '${item.name} ${item.price} ${item.currency}',
-          ),
-        )
-        .toList(growable: false);
+    final planOptions = [
+      const OpenVtsDropdownOption<String>(
+        value: _createPlanValue,
+        label: '+ Create new plan',
+        subtitle: 'Create pricing plan without leaving this form',
+        leading: Icon(Icons.add_circle_outline,
+            size: 20, color: OpenVtsColors.brandInk),
+        searchText: 'create new pricing plan',
+      ),
+      ..._plans.map(
+        (item) => OpenVtsDropdownOption<String>(
+          value: item.id,
+          label: item.name,
+          subtitle: item.price == null
+              ? item.currency
+              : '${item.price} ${item.currency}'.trim(),
+          searchText: '${item.name} ${item.price} ${item.currency}',
+        ),
+      ),
+    ];
 
     return _FormSection(
       icon: Icons.link_rounded,
@@ -279,12 +306,17 @@ class _AdminCreateVehicleScreenState
         OpenVtsSearchableDropdown<String>(
           label: 'Primary user',
           required: true,
-          hintText:
-              _users.isEmpty ? 'No users available' : 'Select primary user',
+          hintText: _isCatalogLoading
+              ? 'Loading users...'
+              : _catalogError != null
+                  ? 'Failed to load users'
+                  : _users.isEmpty
+                      ? 'No users available'
+                      : 'Select primary user',
           searchHintText: 'Search user name, email, or mobile',
           sheetTitle: 'Select primary user',
           leadingIcon: Icons.person_outline_rounded,
-          enabled: _users.isNotEmpty,
+          enabled: !_isCatalogLoading && _catalogError == null && _users.isNotEmpty,
           options: userOptions,
           value: _userId,
           validator: (value) => value == null || value.trim().isEmpty
@@ -295,32 +327,48 @@ class _AdminCreateVehicleScreenState
         OpenVtsSearchableDropdown<String>(
           label: 'Device',
           required: true,
-          hintText:
-              _devices.isEmpty ? 'No devices available' : 'Select GPS device',
+          hintText: _devices.isEmpty && !_isCatalogLoading
+              ? 'No devices available'
+              : 'Select GPS device',
           searchHintText: 'Search IMEI or SIM number',
           sheetTitle: 'Select device',
           leadingIcon: Icons.router_outlined,
-          enabled: _devices.isNotEmpty,
+          enabled: !_isCatalogLoading || _devices.isNotEmpty,
           options: deviceOptions,
           value: _deviceId,
-          validator: (value) =>
-              value == null || value.trim().isEmpty ? 'Device is required' : null,
-          onChanged: (value) => setState(() => _deviceId = value),
+          validator: (value) => value == null || value.trim().isEmpty
+              ? 'Device is required'
+              : null,
+          onChanged: (value) async {
+            if (value == _createDeviceValue) {
+              await _handleCreateDevice();
+              return;
+            }
+            setState(() => _deviceId = value);
+          },
         ),
         OpenVtsSearchableDropdown<String>(
           label: 'Pricing plan',
           required: true,
-          hintText: _plans.isEmpty ? 'No plans available' : 'Select pricing plan',
+          hintText: _plans.isEmpty && !_isCatalogLoading
+              ? 'No plans available'
+              : 'Select pricing plan',
           searchHintText: 'Search plan name',
           sheetTitle: 'Select pricing plan',
           leadingIcon: Icons.payments_outlined,
-          enabled: _plans.isNotEmpty,
+          enabled: !_isCatalogLoading || _plans.isNotEmpty,
           options: planOptions,
           value: _planId,
           validator: (value) => value == null || value.trim().isEmpty
               ? 'Pricing plan is required'
               : null,
-          onChanged: (value) => setState(() => _planId = value),
+          onChanged: (value) async {
+            if (value == _createPlanValue) {
+              await _handleCreatePlan();
+              return;
+            }
+            setState(() => _planId = value);
+          },
         ),
       ],
     );
@@ -339,7 +387,9 @@ class _AdminCreateVehicleScreenState
     if (_userId == null ||
         _deviceId == null ||
         _vehicleTypeId == null ||
-        _planId == null) {
+        _planId == null ||
+        _deviceId == _createDeviceValue ||
+        _planId == _createPlanValue) {
       ToastHelper.showError(
         'Primary user, device, vehicle type, and pricing plan are required.',
         context: context,
@@ -353,10 +403,10 @@ class _AdminCreateVehicleScreenState
               name: _nameController.text.trim(),
               vin: _vinController.text.trim(),
               plateNumber: _plateController.text.trim(),
-              deviceId: _parseRequiredId(_deviceId, 'device'),
-              vehicleTypeId: _parseRequiredId(_vehicleTypeId, 'vehicle type'),
-              primaryUserId: _parseRequiredId(_userId, 'primary user'),
-              planId: _parseRequiredId(_planId, 'pricing plan'),
+              deviceId: _deviceId!.trim(),
+              vehicleTypeId: _vehicleTypeId!.trim(),
+              primaryUserId: _userId!.trim(),
+              planId: _planId!.trim(),
             ),
           );
 
@@ -383,12 +433,68 @@ class _AdminCreateVehicleScreenState
     }
   }
 
-  int _parseRequiredId(String? value, String fieldName) {
-    final parsed = int.tryParse(value?.trim() ?? '');
-    if (parsed == null) {
-      throw FormatException('Invalid $fieldName selected.');
+  Future<void> _handleCreateDevice() async {
+    final createdDevice = await OpenVtsBottomSheet.show<AdminInventoryDevice?>(
+      context: context,
+      title: 'Add Device or SIM',
+      initialChildSize: 0.80,
+      minChildSize: 0.60,
+      maxChildSize: 0.80,
+      snap: false,
+      child: const AdminInventoryAddSheet(),
+    );
+
+    if (!mounted) return;
+
+    if (createdDevice != null) {
+      await _refreshDevices();
+      setState(() => _deviceId = createdDevice.id);
+      ToastHelper.showSuccess('Device created and selected', context: context);
     }
-    return parsed;
+  }
+
+  Future<void> _handleCreatePlan() async {
+    final createdPlan = await OpenVtsBottomSheet.show<AdminPlan?>(
+      context: context,
+      title: 'Create Pricing Plan',
+      initialChildSize: 0.80,
+      minChildSize: 0.60,
+      maxChildSize: 0.80,
+      snap: false,
+      child: const AdminPlanFormSheet.create(),
+    );
+
+    if (!mounted) return;
+
+    if (createdPlan != null) {
+      await _refreshPlans();
+      setState(() => _planId = createdPlan.id);
+      ToastHelper.showSuccess('Plan created and selected', context: context);
+    }
+  }
+
+  Future<void> _refreshDevices() async {
+    try {
+      final devices = await ref
+          .read(adminVehiclesControllerProvider.notifier)
+          .getQuickDevices();
+      if (!mounted) return;
+      setState(() => _devices = devices);
+    } catch (error) {
+      // Silent fail - user can retry manually
+    }
+  }
+
+  Future<void> _refreshPlans() async {
+    try {
+      final plans = await ref
+          .read(adminVehiclesControllerProvider.notifier)
+          .getPricingPlans();
+      if (!mounted) return;
+      setState(() => _plans = plans);
+    } catch (error) {
+      // Silent fail - user can retry manually
+    }
   }
 
   void _handleClose(BuildContext context) {
@@ -563,15 +669,15 @@ class _SectionHeader extends StatelessWidget {
           width: 36,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: isDark ? OpenVtsColors.darkBackground : OpenVtsColors.surface,
+            color:
+                isDark ? OpenVtsColors.darkBackground : OpenVtsColors.surface,
             shape: BoxShape.circle,
           ),
           child: Icon(
             icon,
             size: 18,
-            color: isDark
-                ? OpenVtsColors.darkTextPrimary
-                : OpenVtsColors.brandInk,
+            color:
+                isDark ? OpenVtsColors.darkTextPrimary : OpenVtsColors.brandInk,
           ),
         ),
         const SizedBox(width: OpenVtsSpacing.sm),

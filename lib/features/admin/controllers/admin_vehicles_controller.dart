@@ -100,6 +100,18 @@ class AdminVehiclesController extends StateNotifier<AdminVehiclesState> {
     );
   }
 
+  Future<List<AdminVehicleUserMini>> getUsers() async {
+    return await _service.getUsers();
+  }
+
+  Future<List<AdminQuickDeviceOption>> getQuickDevices() async {
+    return await _service.getQuickDevices();
+  }
+
+  Future<List<AdminPricingPlanOption>> getPricingPlans() async {
+    return await _service.getPricingPlans();
+  }
+
   Future<bool> updateVehicleStatus(
       {required String id, required bool isActive}) async {
     final current = state.vehicles;

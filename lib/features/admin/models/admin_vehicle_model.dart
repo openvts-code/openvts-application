@@ -1,4 +1,5 @@
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../notifications/models/app_notification.dart';
 import '../../superadmin/models/superadmin_vehicle_model.dart';
@@ -329,29 +330,89 @@ class AdminVehicleUserMini {
 
   factory AdminVehicleUserMini.fromJson(dynamic json) {
     final source = _extractMapPayload(json);
-    final uid = _firstString(source, const ['uid', 'id', '_id']) ?? '';
-    final prefix =
-        _firstString(source, const ['mobilePrefix', 'mobile_prefix']) ?? '';
-    final number =
-        _firstString(source, const ['mobileNumber', 'mobile_number']) ?? '';
+    final uid = _firstString(source, const [
+          'uid',
+          'userId',
+          'user_id',
+          'id',
+          '_id',
+        ]) ??
+        '';
+    final prefix = _firstString(source, const [
+          'mobilePrefix',
+          'mobile_prefix',
+          'mobileprefix',
+          'phonePrefix',
+          'phone_prefix',
+        ]) ??
+        '';
+    final number = _firstString(source, const [
+          'mobileNumber',
+          'mobile_number',
+          'mobile',
+          'phoneNumber',
+          'phone_number',
+          'phone',
+          'contactNumber',
+          'contact_number',
+        ]) ??
+        '';
+    final id = _firstString(source, const [
+          'id',
+          '_id',
+          'uid',
+          'userId',
+          'user_id',
+        ]) ??
+        uid;
+
+    if (kDebugMode && id.isNotEmpty) {
+      debugPrint('[AdminVehicleUserMini] parsed user: id=$id, uid=$uid, name=${_firstString(source, const ['name', 'fullName', 'full_name'])}');
+    }
+
     return AdminVehicleUserMini(
       uid: uid,
-      id: _firstString(source, const ['id', '_id', 'uid']) ?? uid,
-      name: _firstString(source, const ['name', 'fullName']) ?? '',
-      username: _firstString(source, const ['username', 'userName']) ?? '',
-      email: _firstString(source, const ['email']) ?? '',
+      id: id,
+      name: _firstString(source, const [
+            'name',
+            'fullName',
+            'full_name',
+            'displayName',
+            'display_name',
+          ]) ??
+          '',
+      username: _firstString(source, const [
+            'username',
+            'userName',
+            'user_name',
+            'login',
+          ]) ??
+          '',
+      email: _firstString(source, const [
+            'email',
+            'Email',
+            'mail',
+            'primaryEmail',
+            'primary_email',
+          ]) ??
+          '',
       mobilePrefix: prefix,
       mobileNumber: number,
-      mobileDisplay:
-          _firstString(source, const ['mobileDisplay', 'mobile_display']) ??
-              [prefix.trim(), number.trim()]
-                  .where((part) => part.isNotEmpty)
-                  .join(' '),
+      mobileDisplay: _firstString(source, const [
+            'mobileDisplay',
+            'mobile_display',
+            'phoneDisplay',
+            'phone_display',
+          ]) ??
+          [prefix.trim(), number.trim()]
+              .where((part) => part.isNotEmpty)
+              .join(' '),
     );
   }
 
   static List<AdminVehicleUserMini> listFromJson(dynamic json) {
-    return _extractList(json)
+    final list = _extractUserList(json);
+    return list
         .map(AdminVehicleUserMini.fromJson)
         .where((item) => item.id.isNotEmpty || item.uid.isNotEmpty)
         .toList(growable: false);
@@ -396,19 +457,19 @@ class AdminCreateVehicleRequest {
   final String name;
   final String vin;
   final String plateNumber;
-  final int deviceId;
-  final int vehicleTypeId;
-  final int primaryUserId;
-  final int planId;
+  final dynamic deviceId;
+  final dynamic vehicleTypeId;
+  final dynamic primaryUserId;
+  final dynamic planId;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
         'name': name.trim(),
         'vin': vin.trim(),
         'plateNumber': plateNumber.trim(),
-        'deviceId': deviceId,
-        'vehicleTypeId': vehicleTypeId,
-        'primaryUserId': primaryUserId,
-        'planId': planId,
+        'deviceId': deviceId is String ? int.tryParse(deviceId) ?? deviceId : deviceId,
+        'vehicleTypeId': vehicleTypeId is String ? int.tryParse(vehicleTypeId) ?? vehicleTypeId : vehicleTypeId,
+        'primaryUserId': primaryUserId is String ? int.tryParse(primaryUserId) ?? primaryUserId : primaryUserId,
+        'planId': planId is String ? int.tryParse(planId) ?? planId : planId,
       };
 }
 
@@ -799,11 +860,52 @@ List<dynamic> _extractList(dynamic json) {
     return const <dynamic>[];
   }
 
-  return _firstList(source, const ['items', 'rows', 'records', 'docs']) ??
+  return _firstList(source,
+          const ['users', 'result', 'items', 'rows', 'records', 'docs']) ??
       _firstList(source, const ['data']) ??
-      _firstList(
-          _asMap(source['data']), const ['items', 'rows', 'records', 'docs']) ??
+      _firstList(_asMap(source['data']),
+          const ['users', 'items', 'rows', 'records', 'docs']) ??
       _firstList(_asMap(source['data']), const ['data']) ??
+      const <dynamic>[];
+}
+
+List<dynamic> _extractUserList(dynamic json) {
+  if (json is List) {
+    return json;
+  }
+  final source = _asMap(json);
+  if (source.isEmpty) {
+    return const <dynamic>[];
+  }
+
+  final data = _asMap(source['data']);
+  final result = _asMap(source['result']);
+
+  return _firstList(source, const [
+        'users',
+        'items',
+        'rows',
+        'records',
+        'docs',
+        'result',
+        'data',
+      ]) ??
+      _firstList(data, const [
+        'users',
+        'items',
+        'rows',
+        'records',
+        'docs',
+        'result',
+        'data',
+      ]) ??
+      _firstList(result, const [
+        'users',
+        'items',
+        'rows',
+        'records',
+        'docs',
+      ]) ??
       const <dynamic>[];
 }
 

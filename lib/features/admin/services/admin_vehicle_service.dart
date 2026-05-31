@@ -125,6 +125,11 @@ class AdminVehicleService {
   Future<List<AdminVehicleUserMini>> getUsers() async {
     final response = await _apiClient.get<dynamic>(
       ApiEndpoints.admin.users,
+      queryParameters: <String, dynamic>{
+        'search': '',
+        'limit': 1000,
+        'page': 1,
+      },
       options: _readOptions,
       parser: (json) => json,
     );
