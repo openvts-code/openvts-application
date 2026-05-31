@@ -882,29 +882,38 @@ List<dynamic> _extractUserList(dynamic json) {
   final result = _asMap(source['result']);
 
   return _firstList(source, const [
+        'userslist',
+        'usersList',
         'users',
         'items',
         'rows',
         'records',
         'docs',
+        'list',
         'result',
         'data',
       ]) ??
       _firstList(data, const [
+        'userslist',
+        'usersList',
         'users',
         'items',
         'rows',
         'records',
         'docs',
+        'list',
         'result',
         'data',
       ]) ??
       _firstList(result, const [
+        'userslist',
+        'usersList',
         'users',
         'items',
         'rows',
         'records',
         'docs',
+        'list',
       ]) ??
       const <dynamic>[];
 }

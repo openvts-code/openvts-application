@@ -44,13 +44,15 @@ class _AdminUserDetailsScreenState extends ConsumerState<AdminUserDetailsScreen>
   @override
   void initState() {
     super.initState();
-    // Ensure vehicle count is loaded for summary display
-    if (widget.initialUser != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        final controller = ref.read(adminUserDetailsControllerProvider(widget.userId).notifier);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final controller = ref.read(adminUserDetailsControllerProvider(widget.userId).notifier);
+      // Seed initial data if available
+      if (widget.initialUser != null) {
         controller.seedInitialData(lastLogin: widget.initialUser!.updatedAt);
-      });
-    }
+      }
+      // Ensure vehicle count is loaded early for summary card (don't wait for Vehicle tab)
+      controller.ensureVehicleCountLoaded();
+    });
   }
 
   @override
@@ -550,7 +552,7 @@ class _SummaryCard extends StatelessWidget {
                 child: _MetricTile(
                   icon: Icons.directions_car_outlined,
                   label: 'Vehicles',
-                  value: (resolvedVehicleCount ?? 0).toString(),
+                  value: resolvedVehicleCount == null ? '—' : resolvedVehicleCount.toString(),
                 ),
               ),
               const SizedBox(width: OpenVtsSpacing.sm),

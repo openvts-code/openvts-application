@@ -7,6 +7,7 @@ import '../../../../../core/theme/open_vts_colors.dart';
 import '../../../../../core/theme/open_vts_radius.dart';
 import '../../../../../core/theme/open_vts_spacing.dart';
 import '../../../../../core/theme/open_vts_typography.dart';
+import '../../../../../core/utils/unit_formatter.dart';
 import '../../../controllers/user_providers.dart';
 import '../../../models/user_dashboard_model.dart';
 import 'user_dashboard_widget_card.dart';
@@ -68,6 +69,7 @@ class _UserWeeklyComparisonWidgetState
 
   @override
   Widget build(BuildContext context) {
+    final unitFormatter = ref.watch(unitFormatterProvider);
     final state = ref.watch(
       userDashboardWeeklyProvider(
         UserDashboardVehicleScopedArgs(
@@ -83,7 +85,7 @@ class _UserWeeklyComparisonWidgetState
       icon: Icons.compare_arrows_rounded,
       isLoading: state.isLoading,
       onRefresh: _reload,
-      child: _buildBody(state),
+      child: _buildBody(state, unitFormatter),
     );
   }
 
@@ -94,6 +96,7 @@ class _UserWeeklyComparisonWidgetState
               UserDashboardWeeklyComparison comparison,
             })>
         state,
+    UnitFormatter unitFormatter,
   ) {
     if (state.hasError) {
       return UserDashboardWidgetError(
@@ -122,12 +125,12 @@ class _UserWeeklyComparisonWidgetState
         ),
         const SizedBox(height: OpenVtsSpacing.sm),
         SegmentedButton<_WeeklyMetric>(
-          segments: const [
+          segments: [
             ButtonSegment(
               value: _WeeklyMetric.drivenKm,
-              label: Text('Driven KM'),
+              label: Text('Driven ${unitFormatter.distanceLabel.toUpperCase()}'),
             ),
-            ButtonSegment(
+            const ButtonSegment(
               value: _WeeklyMetric.engineHours,
               label: Text('Engine Hours'),
             ),

@@ -133,23 +133,24 @@ class AdminUsersController extends StateNotifier<AdminUsersState> {
     return _service.getCities(countryCode, stateCode);
   }
 
-  Future<void> createUser(AdminCreateUserRequest request) async {
+  Future<AdminUserDetails> createUser(AdminCreateUserRequest request) async {
     state = state.copyWith(
       isCreating: true,
       errorMessage: null,
     );
 
     try {
-      await _service.createUser(request);
+      final createdUser = await _service.createUser(request);
       if (!mounted) {
-        return;
+        return createdUser;
       }
 
       state = state.copyWith(isCreating: false);
       await refresh();
+      return createdUser;
     } catch (error) {
       if (!mounted) {
-        return;
+        rethrow;
       }
 
       state = state.copyWith(

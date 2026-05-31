@@ -126,9 +126,8 @@ class AdminVehicleService {
     final response = await _apiClient.get<dynamic>(
       ApiEndpoints.admin.users,
       queryParameters: <String, dynamic>{
-        'search': '',
-        'limit': 1000,
         'page': 1,
+        'limit': 1000,
       },
       options: _readOptions,
       parser: (json) => json,

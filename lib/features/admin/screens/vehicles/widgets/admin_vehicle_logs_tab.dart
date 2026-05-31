@@ -1,8 +1,10 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../../core/theme/open_vts_spacing.dart';
+import '../../../../../core/utils/unit_formatter.dart';
 import '../../../../../shared/widgets/open_vts_bottom_sheet.dart';
 import '../../../../../shared/widgets/open_vts_button.dart';
 import '../../../../../shared/widgets/open_vts_card.dart';
@@ -10,7 +12,7 @@ import '../../../../../shared/widgets/open_vts_empty_state.dart';
 import '../../../../../shared/widgets/open_vts_loader.dart';
 import '../../../models/admin_vehicle_model.dart';
 
-class AdminVehicleLogsTab extends StatefulWidget {
+class AdminVehicleLogsTab extends ConsumerStatefulWidget {
   const AdminVehicleLogsTab({
     super.key,
     required this.imei,
@@ -33,14 +35,16 @@ class AdminVehicleLogsTab extends StatefulWidget {
   final Future<void> Function(DateTime? from, DateTime? to) onApplyRange;
 
   @override
-  State<AdminVehicleLogsTab> createState() => _AdminVehicleLogsTabState();
+  ConsumerState<AdminVehicleLogsTab> createState() => _AdminVehicleLogsTabState();
 }
 
-class _AdminVehicleLogsTabState extends State<AdminVehicleLogsTab> {
+class _AdminVehicleLogsTabState extends ConsumerState<AdminVehicleLogsTab> {
   DateTimeRange? _range;
+  late UnitFormatter _unitFormatter;
 
   @override
   Widget build(BuildContext context) {
+    _unitFormatter = ref.watch(unitFormatterProvider);
     if (widget.imei.trim().isEmpty) {
       return const OpenVtsEmptyState(
         title: 'IMEI missing',
@@ -91,7 +95,7 @@ class _AdminVehicleLogsTabState extends State<AdminVehicleLogsTab> {
                   children: [
                     Text('Time: ${_fmtDateTime(log.displayTime)}'),
                     Text('Packet: ${_safe(log.packetType)}'),
-                    Text('Speed: ${_num(log.speedKph)}'),
+                    Text('Speed: ${_num(log.speedKph)} ${_unitFormatter.speedLabel}'),
                     Text(
                         'Ignition/ACC: ${_bool(log.ignition)}/${_bool(log.acc)}'),
                     Text(
@@ -141,7 +145,7 @@ class _AdminVehicleLogsTabState extends State<AdminVehicleLogsTab> {
           _line('Time', _fmtDateTime(log.displayTime)),
           _line('Packet Type', _safe(log.packetType)),
           _line('Protocol', _safe(log.protocol)),
-          _line('Speed', _num(log.speedKph)),
+          _line('Speed', '${_num(log.speedKph)} ${_unitFormatter.speedLabel}'),
           _line('Course', _num(log.course)),
           _line('Ignition', _bool(log.ignition)),
           _line('ACC', _bool(log.acc)),

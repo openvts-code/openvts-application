@@ -8,6 +8,7 @@ import '../../../../core/theme/open_vts_spacing.dart';
 import '../../../../shared/helpers/toast_helper.dart';
 import '../../../../shared/widgets/open_vts_bottom_sheet.dart';
 import '../../../../shared/widgets/open_vts_card.dart';
+import '../../../../shared/widgets/open_vts_detail_tab_strip.dart';
 import '../../../../shared/widgets/open_vts_empty_state.dart';
 import '../../../../shared/widgets/open_vts_error_view.dart';
 import '../../../../shared/widgets/open_vts_loader.dart';
@@ -352,22 +353,19 @@ class _TabChips extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: AdminVehicleDetailsTab.values
-            .map(
-              (tab) => Padding(
-                padding: const EdgeInsets.only(right: OpenVtsSpacing.xs),
-                child: ChoiceChip(
-                  label: Text(_labels[tab] ?? tab.name),
-                  selected: selected == tab,
-                  onSelected: (_) => onSelect(tab),
-                ),
-              ),
-            )
-            .toList(growable: false),
-      ),
+    final tabs = AdminVehicleDetailsTab.values
+        .map(
+          (tab) => OpenVtsDetailTabOption<AdminVehicleDetailsTab>(
+            value: tab,
+            label: _labels[tab] ?? tab.name,
+          ),
+        )
+        .toList(growable: false);
+
+    return OpenVtsDetailTabStrip<AdminVehicleDetailsTab>(
+      tabs: tabs,
+      selected: selected,
+      onChanged: onSelect,
     );
   }
 }

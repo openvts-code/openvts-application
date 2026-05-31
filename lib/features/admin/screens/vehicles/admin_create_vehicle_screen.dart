@@ -18,9 +18,11 @@ import '../../../../shared/widgets/open_vts_text_field.dart';
 import '../../controllers/admin_providers.dart';
 import '../../models/admin_inventory_model.dart';
 import '../../models/admin_plans_model.dart';
+import '../../models/admin_users_model.dart';
 import '../../models/admin_vehicle_model.dart';
 import '../inventory/widgets/admin_inventory_add_sheet.dart';
 import '../plans/widgets/admin_plan_form_sheet.dart';
+import '../users/widgets/admin_create_user_sheet.dart';
 
 class AdminCreateVehicleScreen extends ConsumerStatefulWidget {
   const AdminCreateVehicleScreen({super.key});
@@ -32,6 +34,7 @@ class AdminCreateVehicleScreen extends ConsumerStatefulWidget {
 
 class _AdminCreateVehicleScreenState
     extends ConsumerState<AdminCreateVehicleScreen> {
+  static const _createUserValue = '__create_user__';
   static const _createDeviceValue = '__create_device__';
   static const _createPlanValue = '__create_plan__';
 
@@ -243,19 +246,29 @@ class _AdminCreateVehicleScreenState
   }
 
   Widget _assignmentSection() {
-    final userOptions = _users
-        .map(
-          (item) => OpenVtsDropdownOption<String>(
-            value: item.id,
-            label: item.name.trim().isEmpty ? item.mobileDisplay : item.name,
-            subtitle: item.mobileDisplay.trim().isEmpty
-                ? item.email
-                : item.mobileDisplay,
-            searchText:
-                '${item.name} ${item.email} ${item.mobileDisplay} ${item.username}',
-          ),
-        )
-        .toList(growable: false);
+    final userOptions = [
+      const OpenVtsDropdownOption<String>(
+        value: _createUserValue,
+        label: '+ Create new user',
+        subtitle: 'Create user without leaving this vehicle form',
+        leading: Icon(Icons.add_circle_outline_rounded,
+            size: 20, color: OpenVtsColors.brandInk),
+        searchText: 'add create new user',
+      ),
+      ..._users
+          .map(
+            (item) => OpenVtsDropdownOption<String>(
+              value: item.id,
+              label: item.name.trim().isEmpty ? item.mobileDisplay : item.name,
+              subtitle: item.mobileDisplay.trim().isEmpty
+                  ? item.email
+                  : item.mobileDisplay,
+              searchText:
+                  '${item.name} ${item.email} ${item.mobileDisplay} ${item.username}',
+            ),
+          )
+          .toList(growable: false),
+    ];
 
     final deviceOptions = [
       const OpenVtsDropdownOption<String>(
@@ -311,18 +324,25 @@ class _AdminCreateVehicleScreenState
               : _catalogError != null
                   ? 'Failed to load users'
                   : _users.isEmpty
-                      ? 'No users available'
+                      ? 'Create or select primary user'
                       : 'Select primary user',
           searchHintText: 'Search user name, email, or mobile',
           sheetTitle: 'Select primary user',
           leadingIcon: Icons.person_outline_rounded,
-          enabled: !_isCatalogLoading && _catalogError == null && _users.isNotEmpty,
+          enabled: !_isCatalogLoading && _catalogError == null,
           options: userOptions,
           value: _userId,
-          validator: (value) => value == null || value.trim().isEmpty
+          validator: (value) => value == null || value.trim().isEmpty ||
+                  value == _createUserValue
               ? 'Primary user is required'
               : null,
-          onChanged: (value) => setState(() => _userId = value),
+          onChanged: (value) async {
+            if (value == _createUserValue) {
+              await _handleCreateUser();
+              return;
+            }
+            setState(() => _userId = value);
+          },
         ),
         OpenVtsSearchableDropdown<String>(
           label: 'Device',
@@ -385,10 +405,11 @@ class _AdminCreateVehicleScreenState
     }
 
     if (_userId == null ||
+        _userId == _createUserValue ||
         _deviceId == null ||
+        _deviceId == _createDeviceValue ||
         _vehicleTypeId == null ||
         _planId == null ||
-        _deviceId == _createDeviceValue ||
         _planId == _createPlanValue) {
       ToastHelper.showError(
         'Primary user, device, vehicle type, and pricing plan are required.',
@@ -494,6 +515,40 @@ class _AdminCreateVehicleScreenState
       setState(() => _plans = plans);
     } catch (error) {
       // Silent fail - user can retry manually
+    }
+  }
+
+  Future<void> _handleCreateUser() async {
+    final createdUser = await OpenVtsBottomSheet.show<AdminUserListItem?>(
+      context: context,
+      title: 'Create User',
+      initialChildSize: 0.80,
+      minChildSize: 0.60,
+      maxChildSize: 0.80,
+      snap: false,
+      child: const AdminCreateUserSheet(),
+    );
+
+    if (!mounted) return;
+
+    if (createdUser != null) {
+      await _refreshUsers();
+      if (!mounted) return;
+      setState(() => _userId = createdUser.id);
+      ToastHelper.showSuccess('User created and selected', context: context);
+    }
+  }
+
+  Future<void> _refreshUsers() async {
+    try {
+      final users = await ref
+          .read(adminVehiclesControllerProvider.notifier)
+          .getUsers();
+      if (!mounted) return;
+      setState(() => _users = users);
+    } catch (error) {
+      if (!mounted) return;
+      ToastHelper.showError('Unable to refresh users.', context: context);
     }
   }
 

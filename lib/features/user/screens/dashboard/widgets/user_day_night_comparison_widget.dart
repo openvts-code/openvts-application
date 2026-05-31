@@ -7,6 +7,7 @@ import '../../../../../core/theme/open_vts_colors.dart';
 import '../../../../../core/theme/open_vts_radius.dart';
 import '../../../../../core/theme/open_vts_spacing.dart';
 import '../../../../../core/theme/open_vts_typography.dart';
+import '../../../../../core/utils/unit_formatter.dart';
 import '../../../../../shared/widgets/open_vts_date_time_range_selector.dart';
 import '../../../controllers/user_providers.dart';
 import '../../../models/user_dashboard_model.dart';
@@ -101,6 +102,7 @@ class _UserDayNightComparisonWidgetState
 
   @override
   Widget build(BuildContext context) {
+    final unitFormatter = ref.watch(unitFormatterProvider);
     final range = _resolvedRange();
     final state = ref.watch(
       userDashboardDayNightProvider(
@@ -118,7 +120,7 @@ class _UserDayNightComparisonWidgetState
       icon: Icons.dark_mode_outlined,
       isLoading: state.isLoading,
       onRefresh: _reload,
-      child: _buildBody(state),
+      child: _buildBody(state, unitFormatter),
     );
   }
 
@@ -129,6 +131,7 @@ class _UserDayNightComparisonWidgetState
               UserDashboardDayNightComparison comparison,
             })>
         state,
+    UnitFormatter unitFormatter,
   ) {
     if (state.hasError) {
       return UserDashboardWidgetError(
@@ -217,7 +220,7 @@ class _UserDayNightComparisonWidgetState
             icon: Icons.dark_mode_outlined,
           )
         else
-          _DayNightChart(points: comparison.points, metric: _metric),
+          _DayNightChart(points: comparison.points, metric: _metric, unitFormatter: unitFormatter),
       ],
     );
   }
@@ -347,17 +350,18 @@ class _DayWindowLabel extends StatelessWidget {
 }
 
 class _DayNightChart extends StatelessWidget {
-  const _DayNightChart({required this.points, required this.metric});
+  const _DayNightChart({required this.points, required this.metric, required this.unitFormatter});
 
   final List<UserDashboardDayNightPoint> points;
   final _DayNightMetric metric;
+  final UnitFormatter unitFormatter;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       height: 170,
       child: CustomPaint(
-        painter: _DayNightChartPainter(points: points, metric: metric),
+        painter: _DayNightChartPainter(points: points, metric: metric, unitFormatter: unitFormatter),
         size: Size.infinite,
       ),
     );
@@ -365,10 +369,11 @@ class _DayNightChart extends StatelessWidget {
 }
 
 class _DayNightChartPainter extends CustomPainter {
-  const _DayNightChartPainter({required this.points, required this.metric});
+  const _DayNightChartPainter({required this.points, required this.metric, required this.unitFormatter});
 
   final List<UserDashboardDayNightPoint> points;
   final _DayNightMetric metric;
+  final UnitFormatter unitFormatter;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -446,7 +451,7 @@ class _DayNightChartPainter extends CustomPainter {
       }
     }
 
-    _paintLabel(canvas, metric.shortLabel, const Offset(0, top),
+    _paintLabel(canvas, metric.shortLabel(unitFormatter), const Offset(0, top),
         alignment: TextAlign.left);
   }
 
@@ -478,7 +483,9 @@ class _DayNightChartPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _DayNightChartPainter oldDelegate) {
-    return oldDelegate.points != points || oldDelegate.metric != metric;
+    return oldDelegate.points != points ||
+           oldDelegate.metric != metric ||
+           oldDelegate.unitFormatter.usesMiles != unitFormatter.usesMiles;
   }
 }
 
@@ -530,9 +537,9 @@ enum _DayNightMetric {
     };
   }
 
-  String get shortLabel {
+  String shortLabel(UnitFormatter unitFormatter) {
     return switch (this) {
-      _DayNightMetric.drivenKm => 'km',
+      _DayNightMetric.drivenKm => unitFormatter.distanceLabel,
       _DayNightMetric.engineHours => 'h',
     };
   }

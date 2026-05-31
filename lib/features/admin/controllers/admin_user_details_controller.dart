@@ -167,6 +167,36 @@ class AdminUserDetailsController extends StateNotifier<AdminUserDetailsState> {
     }
   }
 
+  /// Ensure vehicle count is loaded for display in summary card.
+  /// Called early (on screen open) to populate the count before user navigates to Vehicle tab.
+  /// If count already known, returns immediately.
+  /// If vehicles already loaded, uses loaded count.
+  /// Otherwise, fetches linked vehicles only (not unlinked, to avoid unnecessary API calls for summary).
+  Future<void> ensureVehicleCountLoaded() async {
+    // If count already set explicitly, nothing to do
+    if (state.vehicleCount != null) return;
+
+    // If vehicles already loaded, use that count
+    if (state.hasLoadedVehicles) {
+      state = state.copyWith(vehicleCount: state.linkedVehicles.length);
+      return;
+    }
+
+    // Otherwise, fetch linked vehicles only for count
+    try {
+      final linked = await _service.getLinkedVehicles(_userId);
+      state = state.copyWith(
+        linkedVehicles: linked,
+        vehicleCount: linked.length,
+        // Mark as partially loaded (only linked, not unlinked)
+        // Full load happens when user opens Vehicle tab
+      );
+    } catch (error) {
+      // Silently fail for summary count - don't show error, just leave count as unknown
+      // Vehicle tab will load properly when user navigates to it
+    }
+  }
+
   Future<bool> updateProfile(AdminUpdateUserDetailsRequest request) async {
     state = state.copyWith(
       isSavingProfile: true,

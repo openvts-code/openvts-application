@@ -113,6 +113,7 @@ class _LocalizationSettingsSectionState extends ConsumerState<LocalizationSettin
     final ok = await _controller.updateLocalization(request);
     if (!mounted) return;
     if (ok) {
+      // Apply preferences immediately with saved request values (confirmed by successful API save)
       await ref.read(appLocalizationPreferencesProvider.notifier).applyFromSuperadminSettings(
             language: request.language,
             dateFormat: request.dateFormat,
@@ -124,7 +125,16 @@ class _LocalizationSettingsSectionState extends ConsumerState<LocalizationSettin
           );
       if (!mounted) return;
       ToastHelper.showSuccess('Localization saved');
+
+      // Load fresh localization data from backend AFTER applying preferences.
+      // The controller state (set by updateLocalization) preserves the request values,
+      // so form fields remain as user submitted even if backend response differs.
+      // This prevents visual reset while allowing UI to display confirmed state.
       await _controller.loadLocalization();
+      if (!mounted) return;
+
+      // Rehydrate form from controller state, which contains the confirmed request values
+      // (not fresh backend data that might be stale or have different field names)
       if (mounted) {
         setState(() => _hydrated = false);
         _hydrate(ref.read(superadminSettingsControllerProvider).localization);

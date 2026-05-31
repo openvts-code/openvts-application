@@ -15,6 +15,7 @@ import '../../../core/api/api_exception.dart';
 import '../../../core/providers/core_providers.dart';
 import '../../../core/socket/socket_service.dart';
 import '../../../core/utils/date_time_formatter.dart';
+import '../../../core/utils/unit_formatter.dart';
 import '../../../shared/helpers/toast_helper.dart';
 import '../../../shared/models/vehicle_summary.dart';
 import '../../../shared/widgets/open_vts_bottom_sheet.dart';
@@ -2524,7 +2525,7 @@ class _VehicleLogsTabState extends ConsumerState<_VehicleLogsTab> {
   }
 }
 
-class _VehicleLogListRow extends StatelessWidget {
+class _VehicleLogListRow extends ConsumerWidget {
   const _VehicleLogListRow({
     required this.log,
     required this.onTap,
@@ -2534,7 +2535,8 @@ class _VehicleLogListRow extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final unitFormatter = ref.watch(unitFormatterProvider);
     final ignition = log.ignition ?? log.acc;
     return Material(
       color: const Color(0xFFF7F7F8),
@@ -2591,7 +2593,7 @@ class _VehicleLogListRow extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               _VehicleLogPill(
-                label: _formatVehicleLogSpeed(log.speedKph),
+                label: _formatVehicleLogSpeed(log.speedKph, unitFormatter: unitFormatter),
               ),
               const SizedBox(width: 6),
               _VehicleLogPill(
@@ -2731,13 +2733,14 @@ class _VehicleLogDetailsDialog extends StatelessWidget {
   }
 }
 
-class _VehicleLogDetailGrid extends StatelessWidget {
+class _VehicleLogDetailGrid extends ConsumerWidget {
   const _VehicleLogDetailGrid({required this.log});
 
   final SuperadminVehicleLog log;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final unitFormatter = ref.watch(unitFormatterProvider);
     final rows = <({String label, String value})>[
       (
         label: 'Source',
@@ -2753,7 +2756,7 @@ class _VehicleLogDetailGrid extends StatelessWidget {
         value: log.packetType.isEmpty ? '--' : log.packetType
       ),
       (label: 'Protocol', value: log.protocol.isEmpty ? '--' : log.protocol),
-      (label: 'Speed', value: _formatVehicleLogSpeed(log.speedKph)),
+      (label: 'Speed', value: _formatVehicleLogSpeed(log.speedKph, unitFormatter: unitFormatter)),
       (label: 'Ignition', value: _formatVehicleLogBool(log.ignition)),
       (label: 'ACC', value: _formatVehicleLogBool(log.acc)),
       (label: 'Latitude', value: _formatVehicleLogCoordinate(log.latitude)),
@@ -2779,12 +2782,12 @@ class _VehicleLogDetailGrid extends StatelessWidget {
       (
         label: 'Distance',
         value: _formatVehicleMetricDistance(null,
-            fallback: log.distance, fractionDigits: 3)
+            fallback: log.distance, fractionDigits: 3, unitFormatter: unitFormatter)
       ),
       (
         label: 'Odometer',
         value: _formatVehicleMetricDistance(null,
-            fallback: log.odometer, fractionDigits: 1)
+            fallback: log.odometer, fractionDigits: 1, unitFormatter: unitFormatter)
       ),
       (
         label: 'Engine hours',
@@ -6047,7 +6050,7 @@ class _VehicleDetailsTab extends ConsumerWidget {
   }
 }
 
-class _VehicleDetailsContent extends StatelessWidget {
+class _VehicleDetailsContent extends ConsumerWidget {
   const _VehicleDetailsContent({
     required this.vehicle,
     this.scrollController,
@@ -6061,7 +6064,8 @@ class _VehicleDetailsContent extends StatelessWidget {
   final Widget? notice;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final unitFormatter = ref.watch(unitFormatterProvider);
     final liveStatusText = _resolveVehicleDetailsText(
       vehicle.status,
       '',
@@ -6092,11 +6096,13 @@ class _VehicleDetailsContent extends StatelessWidget {
       null,
       fallback: vehicle.distanceKm,
       fractionDigits: 2,
+      unitFormatter: unitFormatter,
     );
     final odometer = _formatVehicleMetricDistance(
       null,
       fallback: vehicle.odometerKm,
       fractionDigits: 1,
+      unitFormatter: unitFormatter,
     );
     final todayEngineHours = _formatVehicleEngineHoursValue(
       vehicle.engineHoursToday ?? vehicle.engineHours,
@@ -6149,6 +6155,7 @@ class _VehicleDetailsContent extends StatelessWidget {
     final speedText = _formatVehicleSpeedMetric(
       null,
       fallback: liveSpeed,
+      unitFormatter: unitFormatter,
     );
     final statusLabel = _formatVehicleStatusLabel(
       liveStatusText,
@@ -11050,37 +11057,38 @@ String _formatVehicleMetricDistance(
   String? raw, {
   double? fallback,
   int fractionDigits = 1,
+  required UnitFormatter unitFormatter,
 }) {
   final rawText = raw?.trim() ?? '';
   if (rawText.isNotEmpty) {
     final numeric = _parseVehicleDouble(rawText);
     if (numeric != null) {
-      return '${_formatVehicleMetricNumber(numeric, fractionDigits)} Km';
+      return '${_formatVehicleMetricNumber(numeric, fractionDigits)} ${unitFormatter.distanceLabel}';
     }
 
     return rawText;
   }
 
   if (fallback != null) {
-    return '${_formatVehicleMetricNumber(fallback, fractionDigits)} Km';
+    return '${_formatVehicleMetricNumber(fallback, fractionDigits)} ${unitFormatter.distanceLabel}';
   }
 
   return '--';
 }
 
-String _formatVehicleSpeedMetric(String? raw, {double? fallback}) {
+String _formatVehicleSpeedMetric(String? raw, {double? fallback, required UnitFormatter unitFormatter}) {
   final rawText = raw?.trim() ?? '';
   if (rawText.isNotEmpty) {
     final numeric = _parseVehicleDouble(rawText);
     if (numeric != null) {
-      return '${_formatVehicleMetricNumber(numeric, 2)} KM/Hr';
+      return '${_formatVehicleMetricNumber(numeric, 2)} ${unitFormatter.speedLabel}';
     }
 
     return rawText;
   }
 
   if (fallback != null) {
-    return '${_formatVehicleMetricNumber(fallback, 2)} KM/Hr';
+    return '${_formatVehicleMetricNumber(fallback, 2)} ${unitFormatter.speedLabel}';
   }
 
   return '--';
@@ -11435,12 +11443,12 @@ String _formatVehicleLogDateTime(DateTime? value) {
   return _mapFmt.formatDateTime(value.toLocal());
 }
 
-String _formatVehicleLogSpeed(double? value) {
+String _formatVehicleLogSpeed(double? value, {required UnitFormatter unitFormatter}) {
   if (value == null || !value.isFinite) {
     return '--';
   }
 
-  return '${_formatVehicleMetricNumber(value, 0)} km/h';
+  return '${_formatVehicleMetricNumber(value, 0)} ${unitFormatter.speedLabel}';
 }
 
 String _formatVehicleLogCoordinate(double? value) {

@@ -297,22 +297,22 @@ class AdminInventoryController extends StateNotifier<AdminInventoryState> {
     return items;
   }
 
-  Future<bool> createDevice(AdminCreateDeviceRequest request) async {
-    if (state.isCreating) return false;
+  Future<AdminInventoryDevice?> createDevice(AdminCreateDeviceRequest request) async {
+    if (state.isCreating) return null;
     state = state.copyWith(isCreating: true, createErrorMessage: null);
     try {
-      await _service.createDevice(request);
-      if (!mounted) return false;
+      final device = await _service.createDevice(request);
+      if (!mounted) return null;
       state = state.copyWith(isCreating: false, createErrorMessage: null);
       await refreshDevices();
-      return true;
+      return device;
     } catch (error) {
-      if (!mounted) return false;
+      if (!mounted) return null;
       state = state.copyWith(
         isCreating: false,
         createErrorMessage: _toErrorMessage(error),
       );
-      return false;
+      return null;
     }
   }
 

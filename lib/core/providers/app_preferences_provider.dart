@@ -6,6 +6,70 @@ import '../storage/storage_keys.dart';
 import '../utils/date_time_formatter.dart';
 import 'core_providers.dart';
 
+// Normalization helpers for localization values
+class _LocalizationNormalizers {
+  /// Normalize language code variants to canonical form
+  static String normalizeLanguage(String? value) {
+    if (value == null || value.isEmpty) return 'en';
+    final lower = value.toLowerCase().trim();
+    // Handle variants
+    if (lower.contains('english') || lower == 'en') return 'en';
+    if (lower.contains('hindi') || lower == 'hi') return 'hi';
+    if (lower.contains('arabic') || lower == 'ar') return 'ar';
+    if (lower.contains('spanish') || lower == 'es') return 'es';
+    if (lower.contains('french') || lower == 'fr') return 'fr';
+    if (lower.contains('portuguese') || lower == 'pt') return 'pt';
+    // Fallback to first 2 chars as code if matches known length
+    return lower.length >= 2 ? lower.substring(0, 2) : 'en';
+  }
+
+  /// Normalize units variants to canonical form
+  static String normalizeUnits(String? value) {
+    if (value == null || value.isEmpty) return 'KM';
+    final upper = value.toUpperCase().trim();
+    if (upper.contains('KM') || upper.contains('KILOMETER')) return 'KM';
+    if (upper.contains('MILE') || upper.contains('MI')) return 'MILES';
+    return upper.contains('MILE') ? 'MILES' : 'KM';
+  }
+
+  /// Normalize layout direction variants to canonical form
+  static String normalizeDirection(String? value) {
+    if (value == null || value.isEmpty) return 'LTR';
+    final upper = value.toUpperCase().trim();
+    if (upper.contains('RTL') || upper.contains('RIGHT')) return 'RTL';
+    if (upper.contains('LTR') || upper.contains('LEFT')) return 'LTR';
+    return 'LTR';
+  }
+
+  /// Normalize theme mode
+  static ThemeMode normalizeTheme(dynamic value) {
+    if (value is ThemeMode) return value;
+    if (value is String) {
+      final upper = value.toUpperCase();
+      if (upper.contains('DARK')) return ThemeMode.dark;
+      if (upper.contains('SYSTEM')) return ThemeMode.system;
+      return ThemeMode.light;
+    }
+    return ThemeMode.light;
+  }
+
+  /// Parse multiple possible field names for a single value
+  static String? parseMultipleFields(
+    dynamic json,
+    List<String> fieldNames, {
+    String Function(String)? normalize,
+  }) {
+    if (json is! Map) return null;
+    for (final field in fieldNames) {
+      final value = json[field];
+      if (value is String && value.isNotEmpty) {
+        return normalize != null ? normalize(value) : value;
+      }
+    }
+    return null;
+  }
+}
+
 class AppLocalizationPreferences {
   const AppLocalizationPreferences({
     this.languageCode = 'en',
@@ -155,13 +219,13 @@ class AppLocalizationPreferencesController extends StateNotifier<AppLocalization
     String units = 'KM',
   }) async {
     await apply(
-      languageCode: _normalizeLanguageCode(language),
+      languageCode: _LocalizationNormalizers.normalizeLanguage(language),
       dateFormat: dateFormat,
       timeFormat: use24Hour ? '24h' : '12h',
       timezone: timezoneOffset,
       themeMode: _parseThemeString(theme),
-      layoutDirection: layoutDirection,
-      units: units,
+      layoutDirection: _LocalizationNormalizers.normalizeDirection(layoutDirection),
+      units: _LocalizationNormalizers.normalizeUnits(units),
     );
   }
 
@@ -175,13 +239,13 @@ class AppLocalizationPreferencesController extends StateNotifier<AppLocalization
     String units = 'KM',
   }) async {
     await apply(
-      languageCode: _normalizeLanguageCode(language),
+      languageCode: _LocalizationNormalizers.normalizeLanguage(language),
       dateFormat: dateFormat,
       timeFormat: use24Hour ? '24h' : '12h',
       timezone: timezoneOffset,
       themeMode: _parseThemeString(theme),
-      layoutDirection: layoutDirection,
-      units: units,
+      layoutDirection: _LocalizationNormalizers.normalizeDirection(layoutDirection),
+      units: _LocalizationNormalizers.normalizeUnits(units),
     );
   }
 
@@ -195,13 +259,13 @@ class AppLocalizationPreferencesController extends StateNotifier<AppLocalization
     String units = 'KM',
   }) async {
     await apply(
-      languageCode: _normalizeLanguageCode(languageCode),
+      languageCode: _LocalizationNormalizers.normalizeLanguage(languageCode),
       dateFormat: dateFormat,
       timeFormat: timeFormat.toUpperCase() == '24H' ? '24h' : '12h',
       timezone: timezone,
       themeMode: _parseThemeString(theme),
-      layoutDirection: layoutDirection,
-      units: units,
+      layoutDirection: _LocalizationNormalizers.normalizeDirection(layoutDirection),
+      units: _LocalizationNormalizers.normalizeUnits(units),
     );
   }
 

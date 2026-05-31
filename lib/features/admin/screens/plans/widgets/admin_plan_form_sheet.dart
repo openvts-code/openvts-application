@@ -87,98 +87,105 @@ class _AdminPlanFormSheetState extends ConsumerState<AdminPlanFormSheet> {
     return Form(
       key: _formKey,
       child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(
-            child: ListView(
-              controller: PrimaryScrollController.maybeOf(context),
-              padding: const EdgeInsets.fromLTRB(
-                OpenVtsSpacing.md,
-                OpenVtsSpacing.md,
-                OpenVtsSpacing.md,
-                OpenVtsSpacing.lg,
+          Flexible(
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  OpenVtsSpacing.md,
+                  OpenVtsSpacing.md,
+                  OpenVtsSpacing.md,
+                  OpenVtsSpacing.lg,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (state.isLoadingCurrencies) ...[
+                      const LinearProgressIndicator(minHeight: 2),
+                      const SizedBox(height: OpenVtsSpacing.md),
+                    ],
+                    OpenVtsTextField(
+                      label: 'Name',
+                      controller: _nameController,
+                      textInputAction: TextInputAction.next,
+                      prefixIcon: Icons.badge_outlined,
+                      validator: _validateName,
+                    ),
+                    const SizedBox(height: OpenVtsSpacing.sm),
+                    DropdownButtonFormField<int>(
+                      initialValue: _durationDays,
+                      items: _durationOptions
+                          .map(
+                            (days) => DropdownMenuItem<int>(
+                              value: days,
+                              child: Text(_durationLabel(days)),
+                            ),
+                          )
+                          .toList(growable: false),
+                      decoration: const InputDecoration(
+                        labelText: 'Duration',
+                        prefixIcon: Icon(Icons.schedule_rounded, size: 20),
+                      ),
+                      onChanged: isSubmitting
+                          ? null
+                          : (value) => setState(() => _durationDays = value),
+                      validator: (value) =>
+                          value == null ? 'Duration is required' : null,
+                    ),
+                    const SizedBox(height: OpenVtsSpacing.sm),
+                    OpenVtsTextField(
+                      label: 'Price',
+                      controller: _priceController,
+                      textInputAction: TextInputAction.next,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      prefixIcon: Icons.payments_outlined,
+                      validator: _validatePrice,
+                    ),
+                    const SizedBox(height: OpenVtsSpacing.sm),
+                    DropdownButtonFormField<String>(
+                      initialValue: _currencyCode,
+                      items: currencies
+                          .map(
+                            (item) => DropdownMenuItem<String>(
+                              value: item.code,
+                              child: Text(
+                                item.label,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          )
+                          .toList(growable: false),
+                      decoration: const InputDecoration(
+                        labelText: 'Currency',
+                        prefixIcon: Icon(Icons.language_rounded, size: 20),
+                      ),
+                      onChanged: isSubmitting
+                          ? null
+                          : (value) => setState(() => _currencyCode = value),
+                      validator: (value) =>
+                          (value == null || value.trim().isEmpty)
+                              ? 'Currency is required'
+                              : null,
+                    ),
+                    if (!state.isLoadingCurrencies &&
+                        currencies.isEmpty &&
+                        state.submitErrorMessage != null) ...[
+                      const SizedBox(height: OpenVtsSpacing.sm),
+                      TextButton.icon(
+                        onPressed: () => ref
+                            .read(adminPlansControllerProvider.notifier)
+                            .loadCurrencies(force: true),
+                        icon: const Icon(Icons.refresh_rounded, size: 16),
+                        label: const Text('Retry loading currencies'),
+                      ),
+                    ],
+                  ],
+                ),
               ),
-              children: [
-                if (state.isLoadingCurrencies) ...[
-                  const LinearProgressIndicator(minHeight: 2),
-                  const SizedBox(height: OpenVtsSpacing.md),
-                ],
-                OpenVtsTextField(
-                  label: 'Name',
-                  controller: _nameController,
-                  textInputAction: TextInputAction.next,
-                  prefixIcon: Icons.badge_outlined,
-                  validator: _validateName,
-                ),
-                const SizedBox(height: OpenVtsSpacing.sm),
-                DropdownButtonFormField<int>(
-                  initialValue: _durationDays,
-                  items: _durationOptions
-                      .map(
-                        (days) => DropdownMenuItem<int>(
-                          value: days,
-                          child: Text(_durationLabel(days)),
-                        ),
-                      )
-                      .toList(growable: false),
-                  decoration: const InputDecoration(
-                    labelText: 'Duration',
-                    prefixIcon: Icon(Icons.schedule_rounded, size: 20),
-                  ),
-                  onChanged: isSubmitting
-                      ? null
-                      : (value) => setState(() => _durationDays = value),
-                  validator: (value) =>
-                      value == null ? 'Duration is required' : null,
-                ),
-                const SizedBox(height: OpenVtsSpacing.sm),
-                OpenVtsTextField(
-                  label: 'Price',
-                  controller: _priceController,
-                  textInputAction: TextInputAction.next,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
-                  prefixIcon: Icons.payments_outlined,
-                  validator: _validatePrice,
-                ),
-                const SizedBox(height: OpenVtsSpacing.sm),
-                DropdownButtonFormField<String>(
-                  initialValue: _currencyCode,
-                  items: currencies
-                      .map(
-                        (item) => DropdownMenuItem<String>(
-                          value: item.code,
-                          child: Text(
-                            item.label,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      )
-                      .toList(growable: false),
-                  decoration: const InputDecoration(
-                    labelText: 'Currency',
-                    prefixIcon: Icon(Icons.language_rounded, size: 20),
-                  ),
-                  onChanged: isSubmitting
-                      ? null
-                      : (value) => setState(() => _currencyCode = value),
-                  validator: (value) => (value == null || value.trim().isEmpty)
-                      ? 'Currency is required'
-                      : null,
-                ),
-                if (!state.isLoadingCurrencies &&
-                    currencies.isEmpty &&
-                    state.submitErrorMessage != null) ...[
-                  const SizedBox(height: OpenVtsSpacing.sm),
-                  TextButton.icon(
-                    onPressed: () => ref
-                        .read(adminPlansControllerProvider.notifier)
-                        .loadCurrencies(force: true),
-                    icon: const Icon(Icons.refresh_rounded, size: 16),
-                    label: const Text('Retry loading currencies'),
-                  ),
-                ],
-              ],
             ),
           ),
           const Divider(height: 1),
@@ -232,7 +239,7 @@ class _AdminPlanFormSheetState extends ConsumerState<AdminPlanFormSheet> {
     );
 
     final controller = ref.read(adminPlansControllerProvider.notifier);
-    final success = _isEditMode
+    final result = _isEditMode
         ? await controller.updatePlan(
             id: widget.initialPlan!.id,
             request: request,
@@ -243,8 +250,10 @@ class _AdminPlanFormSheetState extends ConsumerState<AdminPlanFormSheet> {
       return;
     }
 
+    final success = _isEditMode ? (result as bool?) ?? false : result != null;
+
     if (success) {
-      Navigator.of(context).pop();
+      Navigator.of(context).pop(result);
       ToastHelper.showSuccess(
         _isEditMode ? 'Plan updated.' : 'Plan created.',
         context: context,

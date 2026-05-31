@@ -64,9 +64,9 @@ class AdminPlansController extends StateNotifier<AdminPlansState> {
     }
   }
 
-  Future<bool> createPlan(AdminPlanMutationRequest request) async {
+  Future<AdminPlan?> createPlan(AdminPlanMutationRequest request) async {
     if (state.isCreating) {
-      return false;
+      return null;
     }
 
     state = state.copyWith(
@@ -76,22 +76,22 @@ class AdminPlansController extends StateNotifier<AdminPlansState> {
     );
 
     try {
-      await _service.createPlan(request);
+      final plan = await _service.createPlan(request);
       if (!mounted) {
-        return false;
+        return null;
       }
       state = state.copyWith(isCreating: false, submitErrorMessage: null);
       await refresh();
-      return true;
+      return plan;
     } catch (error) {
       if (!mounted) {
-        return false;
+        return null;
       }
       state = state.copyWith(
         isCreating: false,
         submitErrorMessage: _toErrorMessage(error),
       );
-      return false;
+      return null;
     }
   }
 
