@@ -193,8 +193,7 @@ class _AdminCreateUserScreenState extends ConsumerState<AdminCreateUserScreen> {
             value: option.value,
             label: option.value,
             subtitle: option.countryCode,
-            searchText:
-                '${option.value} ${option.countryCode} ${option.label}',
+            searchText: '${option.value} ${option.countryCode} ${option.label}',
           ),
         )
         .toList(growable: false);
@@ -312,7 +311,8 @@ class _AdminCreateUserScreenState extends ConsumerState<AdminCreateUserScreen> {
           maxLength: Validators.maxPasswordLength,
           suffixIcon: IconButton(
             tooltip: _obscurePassword ? 'Show password' : 'Hide password',
-            onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+            onPressed: () =>
+                setState(() => _obscurePassword = !_obscurePassword),
             icon: Icon(
               _obscurePassword
                   ? Icons.visibility_off_outlined
@@ -331,9 +331,8 @@ class _AdminCreateUserScreenState extends ConsumerState<AdminCreateUserScreen> {
           textInputAction: TextInputAction.next,
           maxLength: Validators.maxPasswordLength,
           suffixIcon: IconButton(
-            tooltip: _obscureConfirmPassword
-                ? 'Show password'
-                : 'Hide password',
+            tooltip:
+                _obscureConfirmPassword ? 'Show password' : 'Hide password',
             onPressed: () => setState(
               () => _obscureConfirmPassword = !_obscureConfirmPassword,
             ),
@@ -345,7 +344,8 @@ class _AdminCreateUserScreenState extends ConsumerState<AdminCreateUserScreen> {
               color: OpenVtsColors.textSecondary,
             ),
           ),
-          validator: (value) => Validators.adminConfirmPassword(value, _passwordController.text),
+          validator: (value) =>
+              Validators.adminConfirmPassword(value, _passwordController.text),
         ),
       ],
     );
@@ -489,9 +489,8 @@ class _AdminCreateUserScreenState extends ConsumerState<AdminCreateUserScreen> {
           options: cityOptions,
           value: _selectedCityName,
           isLoading: _isLoadingCities && cityOptions.isEmpty,
-          validator: (value) => value == null || value.trim().isEmpty
-              ? 'City is required'
-              : null,
+          validator: (value) =>
+              value == null || value.trim().isEmpty ? 'City is required' : null,
           onChanged: (value) => setState(() => _selectedCityName = value),
         ),
         OpenVtsTextField(
@@ -623,8 +622,7 @@ class _AdminCreateUserScreenState extends ConsumerState<AdminCreateUserScreen> {
         return;
       }
       ToastHelper.showError(
-        ref.read(adminUsersControllerProvider).errorMessage ??
-            error.toString(),
+        ref.read(adminUsersControllerProvider).errorMessage ?? error.toString(),
         context: context,
       );
     }
@@ -808,15 +806,15 @@ class _SectionHeader extends StatelessWidget {
           width: 36,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: isDark ? OpenVtsColors.darkBackground : OpenVtsColors.surface,
+            color:
+                isDark ? OpenVtsColors.darkBackground : OpenVtsColors.surface,
             shape: BoxShape.circle,
           ),
           child: Icon(
             icon,
             size: 18,
-            color: isDark
-                ? OpenVtsColors.darkTextPrimary
-                : OpenVtsColors.brandInk,
+            color:
+                isDark ? OpenVtsColors.darkTextPrimary : OpenVtsColors.brandInk,
           ),
         ),
         const SizedBox(width: OpenVtsSpacing.sm),

@@ -44,15 +44,11 @@ class _AdminUserDetailsScreenState extends ConsumerState<AdminUserDetailsScreen>
   @override
   void initState() {
     super.initState();
-    // Seed initial data from list item
+    // Ensure vehicle count is loaded for summary display
     if (widget.initialUser != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         final controller = ref.read(adminUserDetailsControllerProvider(widget.userId).notifier);
-        controller.seedInitialData(
-          vehicleCount:
-              widget.initialUser!.vehicleCount > 0 ? widget.initialUser!.vehicleCount : null,
-          lastLogin: widget.initialUser!.updatedAt,
-        );
+        controller.seedInitialData(lastLogin: widget.initialUser!.updatedAt);
       });
     }
   }
@@ -109,7 +105,7 @@ class _AdminUserDetailsScreenState extends ConsumerState<AdminUserDetailsScreen>
               _SummaryCard(
                 user: user,
                 isSyncing: state.isLoadingProfile,
-                linkedVehiclesCount: state.linkedVehicles.length,
+                resolvedVehicleCount: state.resolvedVehicleCount,
               ),
             if (state.errorMessage != null && !user.hasKnownData) ...[
               const SizedBox(height: OpenVtsSpacing.sm),
@@ -450,16 +446,15 @@ class _SummaryCard extends StatelessWidget {
   const _SummaryCard({
     required this.user,
     required this.isSyncing,
-    required this.linkedVehiclesCount,
+    required this.resolvedVehicleCount,
   });
 
   final _UserSnapshot user;
   final bool isSyncing;
-  final int linkedVehiclesCount;
+  final int? resolvedVehicleCount;
 
   @override
   Widget build(BuildContext context) {
-    final resolvedVehicleCount = user.vehicleCount ?? linkedVehiclesCount;
     return OpenVtsCard(
       padding: const EdgeInsets.all(OpenVtsSpacing.md),
       child: Column(
@@ -555,7 +550,7 @@ class _SummaryCard extends StatelessWidget {
                 child: _MetricTile(
                   icon: Icons.directions_car_outlined,
                   label: 'Vehicles',
-                  value: resolvedVehicleCount.toString(),
+                  value: (resolvedVehicleCount ?? 0).toString(),
                 ),
               ),
               const SizedBox(width: OpenVtsSpacing.sm),

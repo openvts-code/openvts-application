@@ -27,16 +27,9 @@ class AdminUserDetailsController extends StateNotifier<AdminUserDetailsState> {
   final Set<AdminUserDetailsTab> _loadedTabs = <AdminUserDetailsTab>{};
 
   /// Seed initial data from list item to preserve values that detail API may omit.
-  void seedInitialData({
-    int? vehicleCount,
-    DateTime? lastLogin,
-  }) {
-    // Only seed if we don't have detail data yet
-    if (state.user != null) return;
-
-    // Store these values so they can be used by resolvers
-    // The state.initialUser already holds the list item data
-    // No action needed here - resolvers use state.initialUser directly
+  void seedInitialData({DateTime? lastLogin}) {
+    // Resolvers automatically use state.initialUser for fallback values
+    // This method is a placeholder for future initialization logic
   }
 
   Future<void> loadInitial() async {
@@ -141,17 +134,28 @@ class AdminUserDetailsController extends StateNotifier<AdminUserDetailsState> {
         user = user.copyWith(isActive: false);
       }
 
+      // Determine the authoritative vehicle count from known sources
+      // Priority: explicitly set > detail if > 0 > initialUser if > 0 > loaded vehicles > fresh detail
+      int? knownCount;
+      if (state.vehicleCount != null) {
+        knownCount = state.vehicleCount;
+      } else if (state.user != null && state.user!.vehicleCount > 0) {
+        knownCount = state.user!.vehicleCount;
+      } else if (state.initialUser != null && state.initialUser!.vehicleCount > 0) {
+        knownCount = state.initialUser!.vehicleCount;
+      } else if (state.hasLoadedVehicles) {
+        knownCount = state.linkedVehicles.length;
+      }
+
       // Preserve known vehicle count if detail API returned 0
-      // and we have a positive count from the list
-      if (user.vehicleCount == 0 &&
-          state.initialUser != null &&
-          state.initialUser!.vehicleCount > 0) {
-        user = user.copyWith(vehicleCount: state.initialUser!.vehicleCount);
+      if (user.vehicleCount == 0 && knownCount != null && knownCount > 0) {
+        user = user.copyWith(vehicleCount: knownCount);
       }
 
       _loadedTabs.add(AdminUserDetailsTab.profile);
       state = state.copyWith(
         user: user,
+        vehicleCount: knownCount ?? (user.vehicleCount > 0 ? user.vehicleCount : null),
         isLoadingProfile: false,
       );
     } catch (error) {
@@ -232,7 +236,52 @@ class AdminUserDetailsController extends StateNotifier<AdminUserDetailsState> {
       sectionErrorMessage: null,
     );
     try {
-      final user = await _service.updateCompanyDetails(_userId, request);
+      var user = await _service.updateCompanyDetails(_userId, request);
+
+      // Preserve submitted values in case backend response omits them
+      // Website is independent - ensure domain and color are preserved
+      if (user.companies.isNotEmpty) {
+        final updatedCompany = user.companies.first;
+        var preservedCompany = updatedCompany;
+
+        // If we submitted customDomain but backend response doesn't have it, preserve it
+        if (request.customDomain.trim().isNotEmpty && updatedCompany.customDomain.isEmpty) {
+          preservedCompany = AdminUserCompany(
+            id: preservedCompany.id,
+            name: preservedCompany.name,
+            websiteUrl: preservedCompany.websiteUrl,
+            customDomain: request.customDomain,
+            socialLinks: preservedCompany.socialLinks,
+            logoLightUrl: preservedCompany.logoLightUrl,
+            logoDarkUrl: preservedCompany.logoDarkUrl,
+            faviconUrl: preservedCompany.faviconUrl,
+            primaryColor: preservedCompany.primaryColor,
+          );
+        }
+
+        // If we submitted primaryColor but backend response doesn't have it, preserve it
+        if (request.primaryColor.trim().isNotEmpty && preservedCompany.primaryColor.isEmpty) {
+          preservedCompany = AdminUserCompany(
+            id: preservedCompany.id,
+            name: preservedCompany.name,
+            websiteUrl: preservedCompany.websiteUrl,
+            customDomain: preservedCompany.customDomain,
+            socialLinks: preservedCompany.socialLinks,
+            logoLightUrl: preservedCompany.logoLightUrl,
+            logoDarkUrl: preservedCompany.logoDarkUrl,
+            faviconUrl: preservedCompany.faviconUrl,
+            primaryColor: request.primaryColor,
+          );
+        }
+
+        // Update user with preserved company if anything changed
+        if (preservedCompany != updatedCompany) {
+          user = user.copyWith(
+            companies: [preservedCompany, ...user.companies.skip(1)],
+          );
+        }
+      }
+
       state = state.copyWith(
         user: user,
         isSavingCompany: false,
@@ -270,6 +319,7 @@ class AdminUserDetailsController extends StateNotifier<AdminUserDetailsState> {
       state = state.copyWith(
         linkedVehicles: results[0],
         availableVehicles: results[1],
+        vehicleCount: results[0].length,
         isLoadingVehicles: false,
       );
     } catch (error) {

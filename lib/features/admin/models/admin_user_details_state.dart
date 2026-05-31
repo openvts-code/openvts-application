@@ -60,12 +60,14 @@ class AdminUserDetailsState {
     required this.isRenewingPayment,
     required this.errorMessage,
     required this.sectionErrorMessage,
+    required this.vehicleCount,
   });
 
   AdminUserDetailsState.initial({
     required this.userId,
     this.initialUser,
   })  : user = null,
+        vehicleCount = null,
         selectedTab = AdminUserDetailsTab.profile,
         linkedVehicles = const <AdminUserVehicle>[],
         availableVehicles = const <AdminUserVehicle>[],
@@ -117,6 +119,7 @@ class AdminUserDetailsState {
   final String userId;
   final AdminUserDetails? user;
   final AdminUserDetails? initialUser;
+  final int? vehicleCount;
   final AdminUserDetailsTab selectedTab;
   final List<AdminUserVehicle> linkedVehicles;
   final List<AdminUserVehicle> availableVehicles;
@@ -183,16 +186,18 @@ class AdminUserDetailsState {
   }
 
   /// Resolved vehicle count that avoids overwriting known count with 0.
-  /// Priority: explicit vehicles tab count > detail response if > 0 > initialUser > linked vehicles count
+  /// Priority: stable vehicleCount > detail response if > 0 > initialUser if > 0 > loaded vehicles > null
   int? get resolvedVehicleCount {
-    // If vehicles tab has been loaded, use actual count
-    if (hasLoadedVehicles) return linkedVehicles.length;
+    // If we have an explicitly set/stable vehicle count, use it
+    if (vehicleCount != null) return vehicleCount;
     // If detail has vehicle count > 0, use it
     if (user != null && user!.vehicleCount > 0) return user!.vehicleCount;
     // If initial list item had a count > 0, use it
     if (initialUser != null && initialUser!.vehicleCount > 0) {
       return initialUser!.vehicleCount;
     }
+    // If vehicles tab has been loaded, use actual count
+    if (hasLoadedVehicles) return linkedVehicles.length;
     // Return null if unknown (don't default to 0)
     return null;
   }
@@ -208,6 +213,7 @@ class AdminUserDetailsState {
   AdminUserDetailsState copyWith({
     Object? user = _unset,
     Object? initialUser = _unset,
+    Object? vehicleCount = _unset,
     AdminUserDetailsTab? selectedTab,
     List<AdminUserVehicle>? linkedVehicles,
     List<AdminUserVehicle>? availableVehicles,
@@ -259,6 +265,8 @@ class AdminUserDetailsState {
       user: identical(user, _unset) ? this.user : user as AdminUserDetails?,
       initialUser:
           identical(initialUser, _unset) ? this.initialUser : initialUser as AdminUserDetails?,
+      vehicleCount:
+          identical(vehicleCount, _unset) ? this.vehicleCount : vehicleCount as int?,
       selectedTab: selectedTab ?? this.selectedTab,
       linkedVehicles: linkedVehicles ?? this.linkedVehicles,
       availableVehicles: availableVehicles ?? this.availableVehicles,

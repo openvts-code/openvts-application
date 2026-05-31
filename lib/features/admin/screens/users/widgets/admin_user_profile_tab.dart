@@ -68,7 +68,6 @@ class AdminUserProfileTab extends ConsumerWidget {
         ],
         _AccountCard(
           profile: profile,
-          linkedVehiclesCount: state.linkedVehicles.length,
           isUpdatingStatus: state.isUpdatingStatus,
           isBusy: isBusy,
           onToggleStatus: (next) => _updateStatus(context, controller, next),
@@ -319,14 +318,12 @@ Future<void> _showAdminUserEditCompanySheetWithProfile({
 class _AccountCard extends StatelessWidget {
   const _AccountCard({
     required this.profile,
-    required this.linkedVehiclesCount,
     required this.isUpdatingStatus,
     required this.isBusy,
     required this.onToggleStatus,
   });
 
   final _ProfileSnapshot profile;
-  final int linkedVehiclesCount;
   final bool isUpdatingStatus;
   final bool isBusy;
   final ValueChanged<bool> onToggleStatus;
@@ -970,7 +967,8 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
     _mobilePrefix = _blankToNull(profile.mobilePrefix);
     _countryCode = _blankToNull(profile.countryCode)?.toUpperCase();
     _stateCode = _blankToNull(profile.stateCode)?.toUpperCase();
-    _city = _blankToNull(profile.city);
+    // Use city name if available, fall back to cityId
+    _city = _blankToNull(profile.city) ?? _blankToNull(profile.cityId);
     _loadInitialReferences();
   }
 
@@ -1172,21 +1170,45 @@ class _EditProfileSheetState extends ConsumerState<_EditProfileSheet> {
   }
 
   List<AdminUserDropdownOption> get _countryOptions {
-    return _countries
+    final options = _countries
         .map((item) => AdminUserDropdownOption(value: item.value, label: item.label))
-        .toList(growable: false);
+        .toList(growable: true);
+    // Inject current country if not in list
+    if (_countryCode != null && !options.any((o) => o.value == _countryCode)) {
+      options.insert(
+        0,
+        AdminUserDropdownOption(value: _countryCode!, label: '$_countryCode (current)'),
+      );
+    }
+    return options;
   }
 
   List<AdminUserDropdownOption> get _stateOptions {
-    return _states
+    final options = _states
         .map((item) => AdminUserDropdownOption(value: item.value, label: item.label))
-        .toList(growable: false);
+        .toList(growable: true);
+    // Inject current state if not in list
+    if (_stateCode != null && !options.any((o) => o.value == _stateCode)) {
+      options.insert(
+        0,
+        AdminUserDropdownOption(value: _stateCode!, label: '$_stateCode (current)'),
+      );
+    }
+    return options;
   }
 
   List<AdminUserDropdownOption> get _cityOptions {
-    return _cities
+    final options = _cities
         .map((item) => AdminUserDropdownOption(value: item.value, label: item.label))
-        .toList(growable: false);
+        .toList(growable: true);
+    // Inject current city if not in list
+    if (_city != null && !options.any((o) => o.value == _city)) {
+      options.insert(
+        0,
+        AdminUserDropdownOption(value: _city!, label: '$_city (current)'),
+      );
+    }
+    return options;
   }
 
   Future<void> _loadInitialReferences() async {
@@ -1500,19 +1522,22 @@ class _CompanySheetState extends State<_CompanySheet> {
     _nameController = TextEditingController(
       text: _initialText(company?.name ?? widget.fallbackName),
     );
+    // All fields are initialized independently - website does not block domain/color
     _websiteController = TextEditingController(
       text: _initialText(company?.websiteUrl),
     );
     _customDomainController = TextEditingController(
       text: _initialText(company?.customDomain),
     );
-    _primaryColor = _normalizePrimaryColorOption(company?.primaryColor);
+    // Default to Black if no color set
+    _primaryColor = _normalizePrimaryColorOption(company?.primaryColor) ?? 'Black';
     _socialControllers = <String, TextEditingController>{
       for (final socialKey in _socialKeys)
         socialKey: TextEditingController(
           text: _initialText(company?.socialLinks[socialKey]),
         ),
     };
+    // Load full company details only if company has ID but missing fields
     if (_shouldLoadCompany(company)) {
       _loadCompany();
     }
@@ -1645,12 +1670,15 @@ class _CompanySheetState extends State<_CompanySheet> {
 
   void _applyCompany(AdminUserCompany company) {
     _nameController.text = _initialText(company.name);
+    // Apply all fields independently - website is NOT required for domain/color
     _websiteController.text = _initialText(company.websiteUrl);
     _customDomainController.text = _initialText(company.customDomain);
-    _primaryColor = _normalizePrimaryColorOption(company.primaryColor);
+    // Always set primaryColor, default to Black if not provided
+    _primaryColor = _normalizePrimaryColorOption(company.primaryColor) ?? 'Black';
     for (final socialKey in _socialKeys) {
       _socialControllers[socialKey]?.text = _initialText(company.socialLinks[socialKey]);
     }
+    setState(() {});  // Ensure UI updates with all applied values
   }
 
   Future<void> _submit() async {
@@ -1750,8 +1778,11 @@ class _ProfileSnapshot {
     required this.socialLinks,
     required this.address,
     required this.countryCode,
+    required this.countryName,
     required this.stateCode,
+    required this.stateName,
     required this.city,
+    required this.cityId,
     required this.pincode,
     required this.createdAt,
     required this.updatedAt,
@@ -1775,8 +1806,11 @@ class _ProfileSnapshot {
   final Map<String, String> socialLinks;
   final String address;
   final String countryCode;
+  final String countryName;
   final String stateCode;
+  final String stateName;
   final String city;
+  final String cityId;
   final String pincode;
   final DateTime? createdAt;
   final DateTime? updatedAt;
@@ -1831,8 +1865,11 @@ class _ProfileSnapshot {
           details.location,
         ]),
         countryCode: _firstNonEmpty([details.countryCode, address?.countryCode]),
+        countryName: address?.countryName ?? '',
         stateCode: address?.stateCode ?? '',
-        city: address?.cityName ?? '',
+        stateName: address?.stateName ?? '',
+        city: _firstNonEmpty([address?.cityName, address?.cityId]),
+        cityId: address?.cityId ?? '',
         pincode: address?.pincode ?? '',
         createdAt: details.createdAt,
         updatedAt: resolvedLastLogin ?? details.updatedAt,
@@ -1860,8 +1897,11 @@ class _ProfileSnapshot {
         socialLinks: const <String, String>{},
         address: fallback.location,
         countryCode: fallback.countryCode,
+        countryName: '',
         stateCode: fallback.stateCode,
+        stateName: '',
         city: fallback.city,
+        cityId: '',
         pincode: fallback.pincode,
         createdAt: fallback.createdAt,
         updatedAt: resolvedLastLogin ?? fallback.updatedAt,
@@ -1887,8 +1927,11 @@ class _ProfileSnapshot {
       socialLinks: const <String, String>{},
       address: '',
       countryCode: '',
+      countryName: '',
       stateCode: '',
+      stateName: '',
       city: '',
+      cityId: '',
       pincode: '',
       createdAt: null,
       updatedAt: resolvedLastLogin,
@@ -1919,10 +1962,16 @@ AdminUserCompany? _companyFromName(String name) {
 
 bool _shouldLoadCompany(AdminUserCompany? company) {
   if (company == null) return true;
-  return company.websiteUrl.isEmpty &&
-      company.customDomain.isEmpty &&
-      company.primaryColor.isEmpty &&
-      company.socialLinks.isEmpty;
+  // Load company details if the company has an ID but critical fields are missing
+  // Website is NOT required to load other fields (domain, color, socials)
+  if (company.id.isNotEmpty && company.name.isNotEmpty) {
+    // If we have a real company but missing important fields, fetch full details
+    return company.customDomain.isEmpty &&
+        company.primaryColor.isEmpty &&
+        company.socialLinks.isEmpty;
+  }
+  // If only a fallback company name (no ID), don't load
+  return false;
 }
 
 String _displayValue(String value) {

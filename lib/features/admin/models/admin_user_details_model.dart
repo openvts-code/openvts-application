@@ -197,6 +197,8 @@ class AdminUserDetails {
             'vehicleCount',
             'vehiclesCount',
             'vehicles_count',
+            'total_vehicles',
+            '_count.vehicles',
             'vehicles',
           ]) ??
           0,
@@ -352,7 +354,9 @@ class AdminUserAddress {
     required this.id,
     required this.addressLine,
     required this.countryCode,
+    required this.countryName,
     required this.stateCode,
+    required this.stateName,
     required this.cityId,
     required this.cityName,
     required this.pincode,
@@ -362,7 +366,9 @@ class AdminUserAddress {
   final String id;
   final String addressLine;
   final String countryCode;
+  final String countryName;
   final String stateCode;
+  final String stateName;
   final String cityId;
   final String cityName;
   final String pincode;
@@ -386,12 +392,36 @@ class AdminUserAddress {
               ]) ??
               '')
           .toUpperCase(),
+      countryName: _firstString(source, const [
+            'countryName',
+            'country_name',
+            'countryDisplayName',
+          ]) ??
+          '',
       stateCode:
           _firstString(source, const ['stateCode', 'state_code', 'state']) ??
               '',
-      cityId: _firstString(source, const ['cityId', 'city_id']) ?? '',
-      cityName:
-          _firstString(source, const ['cityName', 'city_name', 'city']) ?? '',
+      stateName: _firstString(source, const [
+            'stateName',
+            'state_name',
+            'stateDisplayName',
+          ]) ??
+          '',
+      cityId: _firstString(source, const [
+            'cityId',
+            'city_id',
+            'cityCode',
+            'city_code',
+          ]) ??
+          '',
+      cityName: _firstString(source, const [
+            'cityName',
+            'city_name',
+            'cityDisplayName',
+            'city_display_name',
+            'city',
+          ]) ??
+          '',
       pincode: _firstString(source, const [
             'pincode',
             'pinCode',
